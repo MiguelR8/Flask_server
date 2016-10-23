@@ -1,0 +1,10 @@
+{% extends "base.html"%}
+{% block login %}
+	<p>Iniciar sesión</p>
+	<form action="" method="post" name="login">
+		{{ form.hidden_tag() }}
+		<p>Nombre de usuario: {{ form.username(size=30) }}</p>
+		<p>Contraseña: {{form.password}}</p>
+		<p>Recordar sesión {{ form.remember_me }}</p>
+		<p>{{ form.submit }}</p>
+{% endblock %}

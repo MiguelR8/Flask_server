@@ -1,5 +1,3 @@
-#!flask/bin/python
-import ssl
 #context = ('cert/servercert.pem', 'cert/serverkey.pem')
 from app import app
 if __name__ == '__main__':

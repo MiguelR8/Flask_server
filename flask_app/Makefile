@@ -1,5 +1,5 @@
-FLASK_BIN_PATH=$(shell readlink -f ../flask/bin/)
-FLASK_PYTHON_PATH=$(shell readlink -f ../flask/lib/python3.4/site-packages)
+FLASK_BIN_PATH=$(shell readlink -f ../flask/bin)
+FLASK_PYTHON_PATH=$(shell readlink -f ../flask/lib/$(shell ls ../flask/lib/ | grep python)/site-packages)
 VENV_HOME=$(shell readlink -f ../flask)
 SERVER_URL=www.notariodigital.com
 SERVER_PORT=5000
@@ -22,22 +22,14 @@ cert: dataroot dataserver dataclient
 	openssl x509 -in $(CERTPATH)/serverreq.pem -CA $(CERTPATH)/rootcert.pem -CAkey $(CERTPATH)/rootkey.pem -req -CAcreateserial -out $(CERTPATH)/servercert.pem
 
 ##Virtualenv setup
+$(VENV_HOME):
+	virtualenv $@
 
-#app patches python 2's ssl issues with urllib3
-activate-venv:
-	/bin/bash --rcfile $(FLASK_BIN_PATH)/activate
-	
-$(FLASK_BIN_PATH)pip: activate-venv
-
-app-prerequisites: $(FLASK_BIN_PATH)pip
-	#if Linux: pip install cryptography
-	$(FLASK_BIN_PATH)pip install urllib3[secure]
-
-#~ install-app: $(FLASK_BIN_PATH)pip
-	#~ $< install 
+app-prerequisites: $(VENV_HOME) cert
+	sh venv_setup.sh
 	
 ## Apache setup (v2.4+)
-configure-ws: cert
+configure-ws: app-prerequisites
 	a2dissite $(SERVER_URL)
 	python -c "print \"\"\"\
 	Listen $(SERVER_PORT)\n\
@@ -51,7 +43,7 @@ configure-ws: cert
 		SSLCertificateFile "$(shell readlink -f $(CERTPATH))/servercert.pem"\n\
 		SSLCertificateKeyFile "$(shell readlink -f $(CERTPATH))/serverkey.pem"\n\
 	\n\
-		WSGIDaemonProcess $(APP_NAME) user=$(APACHE_USER) group=$(APACHE_USER) threads=5 python-home=$(VENV_HOME) python-path=$(shell pwd):$(FLASK_PYTHON_PATH)\n\
+		WSGIDaemonProcess $(APP_NAME) user=$(APACHE_USER) group=$(APACHE_USER) threads=5 python-path=$(shell pwd):$(FLASK_PYTHON_PATH)\n\
 		WSGIScriptAlias / $(shell pwd)/$(APP_NAME).wsgi\n\
 	\n\
 		CustomLog /home/$(APACHE_USER)/$(SERVER_URL)-log common\n\
@@ -61,6 +53,7 @@ configure-ws: cert
 		<Directory $(shell pwd)>\n\
 			WSGIProcessGroup $(APP_NAME)\n\
 			WSGIApplicationGroup %{GLOBAL}\n\
+			WSGIScriptReloading On\n\
 			<Files app.wsgi>\n\
 				Require all granted\n\
 			</Files>\n\
@@ -69,3 +62,6 @@ configure-ws: cert
 	a2ensite $(SERVER_URL)
 	service apache2 reload
 	
+shutdown-ws:
+	a2dissite $(SERVER_URL)
+	service apache2 reload

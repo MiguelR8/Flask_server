@@ -1,0 +1,14 @@
+  [ req ]
+ default_bits           = 2048
+ default_keyfile        = rootkey.pem
+ distinguished_name     = req_distinguished_name
+ prompt                 = no
+
+[ req_distinguished_name ]
+ C                      = ES
+ ST                     = Madrid
+ L                      = Madrid
+ O                      = UAM
+ OU                     = Servidor
+ CN                     = www.notariodigital.com
+ emailAddress           = asdfghj

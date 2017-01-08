@@ -1,10 +1,10 @@
 {% extends "base.html"%}
 {% block content %}
-	<form action="" method="post" name="login">
+	<form action="" method="post" name="login" enctype="multipart/form-data">
 		{{ form.hidden_tag() }}
 		<p>Nombre de usuario: {{ form.username(size=30) }}</p>
 		<p>Contraseña: {{form.password}}</p>
-		<p>Recordar sesión {{ form.remember_me }}</p>
+		<p title="Debe coincidir el nombre común">Certificado: {{ form.cert() }}</p>
 		<p>{{ form.submit }}</p>
 	</form>
 {% endblock %}

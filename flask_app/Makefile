@@ -1,4 +1,3 @@
-FLASK_BIN_PATH=$(shell readlink -f ../flask/bin)
 FLASK_PYTHON_PATH=$(shell readlink -f ../flask/lib/$(shell ls ../flask/lib/ | grep python)/site-packages)
 VENV_HOME=$(shell readlink -f ../flask)
 SERVER_URL=www.notariodigital.com
@@ -8,8 +7,6 @@ APACHE_USER=apached
 CERTPATH=cert
 
 #Make self-signed CA, and certificate with key bundled for client or server
-all: cert
-
 cert: dataroot dataserver dataclient
 	mkdir -p cert
 	openssl genrsa -out $(CERTPATH)/rootkey.pem 2048
@@ -21,16 +18,30 @@ cert: dataroot dataserver dataclient
 	openssl req -config dataserver -new -key $(CERTPATH)/serverkey.pem -out $(CERTPATH)/serverreq.pem
 	openssl x509 -in $(CERTPATH)/serverreq.pem -CA $(CERTPATH)/rootcert.pem -CAkey $(CERTPATH)/rootkey.pem -req -CAcreateserial -out $(CERTPATH)/servercert.pem
 
-##Virtualenv setup
+##Virtualenv and app setup
 $(VENV_HOME):
-	virtualenv $@
+	virtualenv --system-site-packages $@
+	
+~$(APACHE_USER):
+	sudo useradd $(APACHE_USER)
+	sudo passwd $(APACHE_USER)
+	sudo mkdir -p ~$(APACHE_USER)/uploads
+	sudo mkdir -p ~$(APACHE_USER)/certs
+	sudo chown -R apached ~apached
+	
+~$(APACHE_USER)/app.db:
+	sudo sh venv_setup.sh
+	sh additional_config.sh ~$(APACHE_USER)
+	su -c "python db_create.py" $(APACHE_USER)
 
-app-prerequisites: $(VENV_HOME) cert
-	sh venv_setup.sh
+db-migrate: $(APP_NAME)/models.py
+	su -c "python db_migrate.py" $(APACHE_USER)
+
+app-prerequisites: $(VENV_HOME) ~$(APACHE_USER) cert ~$(APACHE_USER)/app.db db-migrate
 	
 ## Apache setup (v2.4+)
-configure-ws: app-prerequisites
-	a2dissite $(SERVER_URL)
+configure-ws: app-prerequisites start-ws
+	sudo a2dissite $(SERVER_URL)
 	python -c "print \"\"\"\
 	Listen $(SERVER_PORT)\n\
 	LoadModule ssl_module modules/mod_ssl.so\n\n\
@@ -54,14 +65,18 @@ configure-ws: app-prerequisites
 			WSGIProcessGroup $(APP_NAME)\n\
 			WSGIApplicationGroup %{GLOBAL}\n\
 			WSGIScriptReloading On\n\
-			<Files app.wsgi>\n\
+			<Files $(APP_NAME).wsgi>\n\
 				Require all granted\n\
 			</Files>\n\
 		</Directory>\n\
-	</VirtualHost>\"\"\"" > /etc/apache2/sites-available/$(SERVER_URL).conf
-	a2ensite $(SERVER_URL)
-	service apache2 reload
-	
+	</VirtualHost>\"\"\"" > $(SERVER_URL).conf
+	sudo mv $(SERVER_URL).conf /etc/apache2/sites-available/$(SERVER_URL).conf
+	sudo a2ensite $(SERVER_URL)
+	sudo service apache2 reload
+
+start-ws:
+	sudo a2ensite $(SERVER_URL)
+	sudo service apache2 reload
 shutdown-ws:
-	a2dissite $(SERVER_URL)
-	service apache2 reload
+	sudo a2dissite $(SERVER_URL)
+	sudo service apache2 reload

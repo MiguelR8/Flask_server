@@ -1,0 +1,9 @@
+{% extends "base.html"%}
+{% block content %}
+	<form action="" method="post" name="upload" enctype="multipart/form-data">
+		{{ form.hidden_tag() }}
+		<p>Archivo: {{ form.doc() }}</p>
+		<p>Certificado: {{ form.cert() }}</p>
+		<p>{{ form.submit }}</p>
+	</form>
+{% endblock %}

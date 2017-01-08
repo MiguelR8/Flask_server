@@ -1,0 +1,27 @@
+.FormErrorMessage {
+  color: red;
+}
+
+article {
+  width: 80%;
+  float: left;
+}
+
+aside {
+  width: 20%;
+  height: 40%;
+  float: left;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  font-size: 24;
+  
+}
+
+a {
+  text-decoration: none; 
+}
+
+aside > a {
+  font-weight: bold;
+}

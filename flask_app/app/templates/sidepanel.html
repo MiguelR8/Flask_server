@@ -1,6 +1,10 @@
 {% block sidepanel %}
 	<a href="/"> Página principal</a>
+	{% if current_user.is_authenticated %}
+	<a href="/logout"> Cerrar sesión</a>
+	<a href="/upload"> Subir archivo</a>
+	{% else %}
 	<a href="/login"> Iniciar sesión</a>
 	<a href="/register"> Crear cuenta</a>
-	<a href="/upload"> Subir archivo</a>
+	{% endif %}
 {% endblock %}

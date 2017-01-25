@@ -1,14 +1,19 @@
-  [ req ]
+[ req ]
  default_bits           = 2048
  default_keyfile        = rootkey.pem
  distinguished_name     = req_distinguished_name
  prompt                 = no
+
+[ v3_ext ]
+ basicConstraints       = CA:FALSE
+ subjectKeyIdentifier   = hash
+ authorityKeyIdentifier = keyid,issuer
 
 [ req_distinguished_name ]
  C                      = ES
  ST                     = Madrid
  L                      = Madrid
  O                      = UAM
- OU                     = Cliente
- CN                     = Cliente
- emailAddress           = asdfghjm
+ OU                     = Servidor
+ CN                     = www.notariodigital.com
+ emailAddress           = asdfghj

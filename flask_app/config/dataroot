@@ -3,6 +3,12 @@
  default_keyfile        = rootkey.pem
  distinguished_name     = req_distinguished_name
  prompt                 = no
+ x509_extensions        = v3_ca
+
+[ v3_ca ]
+ subjectKeyIdentifier   = hash
+ authorityKeyIdentifier = keyid:always,issuer:always
+ basicConstraints       = CA:true
 
 [ req_distinguished_name ]
  C                      = ES

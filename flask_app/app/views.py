@@ -1,7 +1,8 @@
 # coding=utf-8
-from app import app, db, models
+from app import app, db, models, lm
 from flask import render_template, redirect, request, flash
 from .forms import LoginForm, PDFUploadForm, RegisterForm
+from flask_login import login_user, logout_user, current_user, login_required
 import os
 from cryptotools import getCommonName
 from hashlib import sha512
@@ -35,6 +36,16 @@ def flash_errors(form):
 		except AttributeError:
 			pass
 
+def redirect_if_logged_in(url):
+	if current_user is not None:
+		redirect(url)
+		
+@lm.user_loader
+def load_user(id):
+	return models.User.query.get(int(id))
+
+##URL renderers
+
 @app.route('/')
 @app.route('/index')
 def index():
@@ -42,22 +53,30 @@ def index():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+	redirect_if_logged_in('/')
 	form = LoginForm()
 	if form.validate_on_submit():
 		h = sha512(form.password.data).digest().decode('utf_16')	#to Unicode
-		if db.session.query(models.User).filter_by(name = unicode(form.username.data), password = h).first() is None:
+		user = models.User.query.filter_by(name = unicode(form.username.data), password = h).first()
+		if user is None:
 			flash(u'Usuario o contraseña incorrectos')
 		else:
-			#do login
+			login_user(user, remember = form.remember_me.data)
 			return redirect('/index')
 	flash_errors(form)
 	return render_template('login.html', data=data['/login.html'], form=form)
 	
+@app.route('/logout')
+def logout():
+	logout_user()
+	return redirect('/')
+	
 @app.route('/register', methods=['GET', 'POST'])
 def register():
+	redirect_if_logged_in('/')
 	form = RegisterForm()
 	if form.validate_on_submit():
-		if db.session.query(models.User).filter_by(name = form.username.data).first():
+		if models.User.query.filter_by(name = form.username.data).first():
 			flash('Usuario ya existe')
 		else:
 			h = sha512(form.password.data).digest().decode('utf_16')
@@ -70,18 +89,19 @@ def register():
 				if getCommonName(cert) == form.username.data:
 					db.session.add(user)
 					db.session.commit()
-					return redirect('/index')
+					return redirect('/')
 				else:
 					flash('Certificado no pertenece al usuario')
 			except ValueError:
 				flash('Archivo no es un certificado')
 			#remove on failure
-			#os.remove(cert)
+			os.remove(cert)
 	flash_errors(form)
 	return render_template('register.html', data=data['/register.html'], form=form)
 
 
 @app.route('/upload', methods=['GET', 'POST'])
+@login_required
 def upload_main():
 	form= PDFUploadForm()
 	if form.validate_on_submit():
@@ -99,6 +119,6 @@ def upload_main():
 		#confFile = app.config['PDF_SIGN_CONF_FILE']
 		#mypdfsigner.add_metadata_sign(pdfLocation, signedPdfLocation, '', '', '', False, False, True, title, author, '', '', confFile)
 		#os.remove(pdfLocation)
-		return redirect('/index')
+		return redirect('/')
 	flash_errors(form)
 	return render_template('doc_upload.html', data=data['/doc_upload.html'], form=form)

@@ -1,5 +1,4 @@
 from app import db
-from sqlalchemy.ext.declarative import declarative_base
 
 #User to Group relation
 class Membership(db.Model):
@@ -11,6 +10,22 @@ class User(db.Model):
 	id		 = db.Column(db.Integer, primary_key = True)
 	name	 = db.Column(db.String(50), nullable = False, unique = True)
 	password = db.Column(db.String(64), nullable = False)					#for now, the sha512
+	
+	@property
+	def is_active(self):
+		return True
+
+	@property
+	def is_authenticated(self):
+		return True
+
+	@property
+	def is_anonymous(self):
+		return False
+		
+	def get_id(self):
+		return unicode(self.id)
+	
 	#cert	 = db.Column(db.String(50), nullable = False, unique = True)	#location is USER_CERTIFICATE_FOLDER/self.name
 	#can the user have several certificates? 
 	

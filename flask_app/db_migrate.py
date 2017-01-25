@@ -11,6 +11,8 @@ except ImportError:
 from app import db
 from config import SQLALCHEMY_DATABASE_URI as db_uri
 from config import SQLALCHEMY_MIGRATE_REPO as db_repo
+from config import DB_CURRENT_VERSION_FILE as version_file
+
 v = api.db_version(db_uri, db_repo)
 migration = db_repo + ('/versions/%03d_migration.py' % (v+1))
 tmp_module = imp.new_module('old_model')
@@ -22,3 +24,4 @@ api.upgrade(db_uri, db_repo)
 v = api.db_version(db_uri, db_repo)
 print('New migration saved as ' + migration)
 print('Current database version: ' + str(v))
+open(version_file, 'w').write(str(v))

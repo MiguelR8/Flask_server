@@ -3,6 +3,10 @@ SERVER_URL=www.notariodigital.com
 SERVER_PORT=5000
 APP_NAME=app
 APACHE_USER=apached
+export SERVER_PORT
+export SERVER_URL
+export APP_NAME
+export APACHE_USER
 
 #Make self-signed CA, and certificate with key bundled for client or server
 cert: config/dataroot config/dataserver config/dataclient
@@ -35,6 +39,7 @@ app-setup: venv_setup.sh additional_config.sh $(VENV_HOME) ~$(APACHE_USER) cert
 	su -c "python db_migrate.py" $(APACHE_USER)
 
 app-prerequisites: app-setup ~$(APACHE_USER)/db_repository/current_version
+	make /etc/apache2/sites-available/$(SERVER_URL).conf
 
 /etc/apache2/sites-available/$(SERVER_URL).conf:
 	python config/get_apache_conf.py
@@ -43,11 +48,7 @@ app-prerequisites: app-setup ~$(APACHE_USER)/db_repository/current_version
 ## Apache setup (v2.4+)
 configure-ws: app-prerequisites start-ws
 	sudo a2dissite $(SERVER_URL)
-	export SERVER_PORT
-	export SERVER_URL
-	export APP_NAME
-	export APACHE_USER
-	make /etc/apache2/sites-available/$(SERVER_URL).conf
+	
 	sudo a2ensite $(SERVER_URL)
 	sudo service apache2 reload
 

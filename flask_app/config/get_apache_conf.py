@@ -1,12 +1,14 @@
 import os
 from sys import executable
 
+cwd = os.sep.join(os.path.abspath(__file__).split(os.sep)[:-2])	#../
+print cwd
 url = os.environ['SERVER_URL']
 port = os.environ['SERVER_PORT']
-target = os.path.join(os.pardir, url + '.conf')
+target = os.path.join(cwd, url + '.conf')
 app = os.environ['APP_NAME']
-cert_dir = os.path.join(os.pardir, 'cert')
-user = environ['APACHE_USER']
+cert_dir = os.path.join(cwd, 'cert')
+user = os.environ['APACHE_USER']
 
 with open(target, 'w') as f:
 	f.write('''
@@ -37,10 +39,11 @@ WSGIPythonPath {1}:{2}
 			Require all granted
 		</Files>
 	</Directory>
-</VirtualHost>'''.format(port, os.getwcd(), executable, url, app,			#0..4
+</VirtualHost>'''.format(port, cwd, executable, url, app,					#0..4
 		os.path.join(cert_dir, 'servercert.pem'),							#5
 		os.path.join(cert_dir, 'serverkey.pem'),							#6
 		user,																#7
-		os.path.join(os.getcwd(), app + '.wsgi'),							#8
+		os.path.join(cwd, app + '.wsgi'),									#8
 		os.path.join(os.path.expanduser('~' + user), url + '-log'),			#9
-		os.path.join(os.path.expanduser('~' + user), url + '-error-log')))	#10
+		os.path.join(os.path.expanduser('~' + user), url + '-error-log'),	#10
+		GLOBAL='{GLOBAL}'))													#Pesky

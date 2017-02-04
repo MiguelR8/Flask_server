@@ -1,0 +1,9 @@
+{% extends "base.html"%}
+{% block content %}
+	<form action="" method="post" name="create_group">
+		{{ form.hidden_tag() }}
+		<p>Nombre: {{ form.name }}</p>
+		<p>Miembros: {{ form.members }}</p>
+		<p>{{ form.submit }}</p>
+	</form>
+{% endblock %}

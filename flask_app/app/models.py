@@ -32,9 +32,9 @@ class User(db.Model):
 class Group(db.Model):
 	id	    = db.Column(db.Integer, primary_key = True)
 	name    = db.Column(db.String(50), nullable = False, unique = True)
+	#admin   = db.Column(db.ForeignKey('user.id'))				#need to enforce membership to apply to admin (at controller level)
 
 class SignedDocs(db.Model):
 	id     = db.Column(db.Integer, primary_key = True)
 	name   = db.Column(db.String(50))
 	author = db.Column(db.Integer, db.ForeignKey('user.id'))	#for now, groups don't write documents
-	

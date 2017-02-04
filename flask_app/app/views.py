@@ -1,12 +1,11 @@
 # coding=utf-8
 from app import app, db, models, lm
 from flask import render_template, redirect, request, flash
-from .forms import LoginForm, PDFUploadForm, RegisterForm
+from .forms import LoginForm, PDFUploadForm, RegisterForm, NewGroupForm
 from flask_login import login_user, logout_user, current_user, login_required
 import os
 from cryptotools import getCommonName
 from hashlib import sha512
-from sqlalchemy import func
 
 data = {'/index.html':
                 {'title': u'Grupos',
@@ -25,7 +24,9 @@ data = {'/index.html':
         '/doc_upload.html':
                 {'title': u'Subir archivo'},
         '/register.html':
-				{'title': u'Crear cuenta'}
+				{'title': u'Crear cuenta'},
+		'/register_group.html':
+				{'title': u'Crear grupo'}
         }
 
 def flash_errors(form):
@@ -122,3 +123,27 @@ def upload_main():
 		return redirect('/')
 	flash_errors(form)
 	return render_template('doc_upload.html', data=data['/doc_upload.html'], form=form)
+	
+@app.route('/register_group', methods=['GET', 'POST'])
+@login_required
+def create_group():
+	form = NewGroupForm()
+	if form.validate_on_submit():
+		group_name = unicode(form.name.data)
+		if models.Group.query.filter_by(name = group_name).first() is None:
+			#add group
+			db.session.add(models.Group(name = group_name))
+			db.session.commit()
+			
+			gid = models.Group.query.filter_by(name = group_name).first().id
+			#and add members
+			for u in form.members:
+				uid = u.data
+				db.session.add(models.Membership(group = gid, member = uid))
+			db.session.commit()
+			
+			return redirect('/')
+		flash('Grupo ya existe con ese nombre')
+	flash_errors(form)
+	return render_template('register_group.html', data=data['/register_group.html'], form=form)
+	

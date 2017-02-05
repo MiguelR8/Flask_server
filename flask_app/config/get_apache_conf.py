@@ -23,6 +23,10 @@ WSGIPythonPath {1}:{2}
 	SSLEngine on
 	SSLCertificateFile {5}
 	SSLCertificateKeyFile {6}
+	
+	SSLVerifyClient require
+	SSLVerifyDepth 10
+	SSLCACertificateFile {CAFile}
 
 	WSGIDaemonProcess {4} user={7} group={7} threads=5 python-path={1}:{2}
 	WSGIScriptAlias / {8}
@@ -46,4 +50,5 @@ WSGIPythonPath {1}:{2}
 		os.path.join(cwd, app + '.wsgi'),									#8
 		os.path.join(os.path.expanduser('~' + user), url + '-log'),			#9
 		os.path.join(os.path.expanduser('~' + user), url + '-error-log'),	#10
-		GLOBAL='{GLOBAL}'))													#Pesky
+		GLOBAL = '{GLOBAL}',												#Pesky
+		CAFile = os.path.join(cert_dir, 'rootcert.pem')))					#CA file for client authentication

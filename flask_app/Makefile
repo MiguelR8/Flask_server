@@ -14,11 +14,11 @@ cert: config/dataroot config/dataserver config/dataclient
 	openssl genrsa -out cert/rootkey.pem 2048
 	openssl req -config config/dataroot -new -x509 -key cert/rootkey.pem -out cert/rootcert.pem
 	openssl genrsa -out cert/clientkey.pem 2048
-	openssl req -config config/dataclient -new -key cert/clientkey.pem -out cert/clientreq.pem
-	openssl x509 -in cert/clientreq.pem -CA cert/rootcert.pem -CAkey cert/rootkey.pem -req -CAcreateserial -extfile config/dataclient -extensions v3_ext -out cert/clientcert.pem
+	openssl req -config config/dataclient -new -key cert/clientkey.pem -extensions v3_ext -out cert/clientreq.pem
+	openssl x509 -in cert/clientreq.pem -CA cert/rootcert.pem -CAkey cert/rootkey.pem -req -CAcreateserial -out cert/clientcert.pem
 	openssl genrsa -out cert/serverkey.pem 2048
-	openssl req -config config/dataserver -new -key cert/serverkey.pem -out cert/serverreq.pem
-	openssl x509 -in cert/serverreq.pem -CA cert/rootcert.pem -CAkey cert/rootkey.pem -req -CAcreateserial -extfile config/dataserver -extensions v3_ext -out cert/servercert.pem
+	openssl req -config config/dataserver -new -key cert/serverkey.pem -extensions v3_ext -out cert/serverreq.pem
+	openssl x509 -in cert/serverreq.pem -CA cert/rootcert.pem -CAkey cert/rootkey.pem -req -CAcreateserial -out cert/servercert.pem
 
 ##Virtualenv and app setup
 $(VENV_HOME):
@@ -41,7 +41,7 @@ app-setup: venv_setup.sh additional_config.sh $(VENV_HOME) ~$(APACHE_USER) cert
 app-prerequisites: app-setup ~$(APACHE_USER)/db_repository/current_version
 	make /etc/apache2/sites-available/$(SERVER_URL).conf
 
-/etc/apache2/sites-available/$(SERVER_URL).conf:
+/etc/apache2/sites-available/$(SERVER_URL).conf: config/get_apache_conf.py
 	python config/get_apache_conf.py
 	sudo mv $(SERVER_URL).conf /etc/apache2/sites-available/$(SERVER_URL).conf
 	
@@ -62,3 +62,9 @@ shutdown-ws:
 ##Testing
 server.p12: cert/servercert.pem cert/serverkey.pem
 	openssl pkcs12 -export -inkey cert/serverkey.pem -in $< -out $@
+	
+client.p12: cert/clientcert.pem cert/clientkey.pem
+	openssl pkcs12 -export -inkey cert/clientkey.pem -in $< -out $@
+	
+root.p12: cert/rootcert.pem cert/rootkey.pem
+	openssl pkcs12 -export -inkey cert/rootkey.pem -in $< -out $@

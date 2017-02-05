@@ -18,6 +18,3 @@
  OU                     = Cliente
  CN                     = Cliente
  emailAddress           = asdfghjm
-
-[ req_dirname ]
- 

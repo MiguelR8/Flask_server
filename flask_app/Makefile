@@ -14,14 +14,12 @@ cert:
 	mkdir -p cert
 	openssl genrsa -out cert/clientkey.pem 2048
 	openssl req -config config/dataclient -new -key cert/clientkey.pem -extensions v3_ext -out cert/clientreq.pem
-	#openssl x509 -in cert/clientreq.pem -CA cert/rootcert.pem -CAkey cert/rootkey.pem -req -CAcreateserial -out cert/clientcert.pem
 	openssl genrsa -out cert/serverkey.pem 2048
 	openssl req -config config/dataserver -new -key cert/serverkey.pem -extensions v3_ext -out cert/serverreq.pem
-	#openssl x509 -in cert/serverreq.pem -CA cert/rootcert.pem -CAkey cert/rootkey.pem -req -CAcreateserial -out cert/servercert.pem
 
 cert/servercert.pem: cert
-	echo "A certificate must be issued from a third party to continue"
-	exit 1
+	#Alert only if non-existent
+	test ! -e cert/servercert.pem && echo "A certificate must be issued from a third party to continue" && exit 1 || true 
 
 ##Virtualenv and app setup
 $(VENV_HOME):

@@ -23,6 +23,10 @@ WSGIPythonPath {1}:{2}
 	SSLEngine on
 	SSLCertificateFile {5}
 	SSLCertificateKeyFile {6}
+	
+	SSLProtocol all -SSLv2 -SSLv3
+	SSLHonorCipherOrder On
+	SSLCipherSuite ECDH+AES
 
 	WSGIDaemonProcess {4} user={7} group={7} threads=5 python-path={1}:{2}
 	WSGIScriptAlias / {8}

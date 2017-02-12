@@ -10,6 +10,11 @@ app = os.environ['APP_NAME']
 cert_dir = os.path.join(cwd, 'cert')
 user = os.environ['APACHE_USER']
 
+#kEDH
+#kDHr
+#kDHd
+#
+
 with open(target, 'w') as f:
 	f.write('''
 Listen {0}
@@ -23,6 +28,10 @@ WSGIPythonPath {1}:{2}
 	SSLEngine on
 	SSLCertificateFile {5}
 	SSLCertificateKeyFile {6}
+	
+	SSLProtocol all -SSLv2 -SSLv3
+	SSLHonorCipherOrder On
+	SSLCipherSuite ECDH+AES
 	
 	SSLVerifyClient require
 	SSLVerifyDepth 10

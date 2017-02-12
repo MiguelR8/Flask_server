@@ -1,10 +1,16 @@
 # coding=utf-8
-from app import app, db, models, lm
+from app import app, db, lm
+import models
 from flask import render_template, redirect, request, flash
 from .forms import LoginForm, PDFUploadForm, RegisterForm, NewGroupForm
 from flask_login import login_user, logout_user, current_user, login_required
 import os
+
+import sys
+#allow import from cryptotools path
+sys.path.insert(0, os.sep.join(os.path.abspath(__file__).split(os.sep)[:-3]))
 from cryptotools import getCommonName
+
 from hashlib import sha512
 
 data = {'/index.html':

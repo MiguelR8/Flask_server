@@ -1,0 +1,8 @@
+{% extends "base.html"%}
+{% block content %}
+	<form action="" method="post" name="upload" enctype="multipart/form-data">
+		{{ form.hidden_tag() }}
+		<p>Certificado (formato DER o PEM): {{ form.doc() }}</p>
+		<p>{{ form.submit }}</p>
+	</form>
+{% endblock %}

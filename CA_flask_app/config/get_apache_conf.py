@@ -23,10 +23,6 @@ WSGIPythonPath {1}:{2}
 	SSLEngine on
 	SSLCertificateFile {5}
 	SSLCertificateKeyFile {6}
-	
-	SSLVerifyClient require
-	SSLVerifyDepth 10
-	SSLCACertificateFile {CAFile}
 
 	WSGIDaemonProcess {4} user={7} group={7} threads=5 python-path={1}:{2}
 	WSGIScriptAlias / {8}
@@ -44,8 +40,8 @@ WSGIPythonPath {1}:{2}
 		</Files>
 	</Directory>
 </VirtualHost>'''.format(port, cwd, executable, url, app,					#0..4
-		os.path.join(cert_dir, 'servercert.pem'),							#5
-		os.path.join(cert_dir, 'serverkey.pem'),							#6
+		os.path.join(cert_dir, 'rootcert.pem'),								#5
+		os.path.join(cert_dir, 'rootkey.pem'),								#6
 		user,																#7
 		os.path.join(cwd, app + '.wsgi'),									#8
 		os.path.join(os.path.expanduser('~' + user), url + '-log'),			#9

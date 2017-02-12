@@ -1,0 +1,30 @@
+<html>
+	<meta charset="uft-8">
+	<head>
+		<title>{{data.title}}</title>
+		<link rel=stylesheet type=text/css href="{{ url_for('static', filename='style.css') }}">
+	</head>
+	<body>
+		<article>
+			<h1>{{data.title}}</h1>
+			{% with messages = get_flashed_messages(category_filter=['message']) %}
+				{% if messages %}
+					{% for message in messages %}
+					  <p class=FormErrorMessage>{{ message }}</p>
+					{% endfor %}
+				{% endif %}
+			{% endwith %}
+            {% with messages = get_flashed_messages(category_filter=['info']) %}
+                {% if messages %}
+                    {% for message in messages %}
+                        <p class="result">{{ message }}</p>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+			{% block content %} {% endblock %}
+		</article>
+		<aside>
+			{% include "sidepanel.html" %}
+		</aside>
+	</body>
+</html>

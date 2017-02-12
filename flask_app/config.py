@@ -1,5 +1,8 @@
-STORAGE_ROOT = '/home/apached'
 import os
+from getpass import getuser
+
+STORAGE_ROOT = os.path.expanduser('~' + getuser())
+
 import string
 
 def activate_venv():

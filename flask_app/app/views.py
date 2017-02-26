@@ -9,7 +9,7 @@ import os
 import sys
 #allow import from cryptotools path
 sys.path.insert(0, os.sep.join(os.path.abspath(__file__).split(os.sep)[:-3]))
-from cryptotools import getCommonName
+from cryptotools import getCommonName, verify_hash_with_certificate
 
 from hashlib import sha512
 
@@ -112,19 +112,34 @@ def register():
 def upload_main():
 	form= PDFUploadForm()
 	if form.validate_on_submit():
-		#verify certificate belongs to logged user
-		f = request.files['doc']
 		
-		pdfLocation = os.path.join(app.config['DOCUMENT_UPLOAD_FOLDER'], f.filename + '.nsig')
-		#save non-signed and signed in different locations in case signing doesn't support simultaneous read-write
-		signedPdfLocation = os.path.join(app.config['DOCUMENT_UPLOAD_FOLDER'], f.filename)
+		doc = request.files['doc']
+		cert = request.files['cert']
+		#TODO: verify certificate belongs to logged user
 		
-		f.save(pdfLocation)
-		#sign with request.files['cert']
-		#title = ' '.join(f.filename.split('.')[:-1] or f.filename)
-		#author = get group name
-		#confFile = app.config['PDF_SIGN_CONF_FILE']
-		#mypdfsigner.add_metadata_sign(pdfLocation, signedPdfLocation, '', '', '', False, False, True, title, author, '', '', confFile)
+		signed = str(form.digest.data)
+		if not signed.endswith("\n"):	#every byte counts
+			signed += "\n"
+		signed = signed.decode('base64')
+		#get doc hash
+		digest = sha512(doc.stream.read()).hexdigest()
+		
+		
+		pdfLocation = os.path.join(app.config['DOCUMENT_UPLOAD_FOLDER'], os.path.basename(doc.filename))
+		doc.save(pdfLocation)
+		try:
+			verify_hash_with_certificate(digest, signed, cert.stream.read())
+		except Exception:
+			flash(u'Error de validación: el documento y certificado no corresponden con la firma')
+			return render_template('doc_upload.html', data=data['/doc_upload.html'], form=form)
+		
+		certLocation = os.path.join(app.config['DOCUMENT_UPLOAD_FOLDER'], os.path.basename(doc.filename))
+		cert.save(certLocation)	#necessary?
+		
+		#TODO: save to database
+		#db.session.add(models.SignedDoc(naem = os.path.basename(doc.filename), author = , signed_digest = signed))
+		#db.commit()
+		
 		#os.remove(pdfLocation)
 		return redirect('/')
 	flash_errors(form)
@@ -149,7 +164,7 @@ def create_group():
 			db.session.commit()
 			
 			return redirect('/')
-		flash('Grupo ya existe con ese nombre')
+		flash(u'Grupo ya existe con ese nombre')
 	flash_errors(form)
 	return render_template('register_group.html', data=data['/register_group.html'], form=form)
 	

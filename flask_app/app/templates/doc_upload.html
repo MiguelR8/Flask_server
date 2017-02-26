@@ -3,6 +3,7 @@
 	<form action="" method="post" name="upload" enctype="multipart/form-data">
 		{{ form.hidden_tag() }}
 		<p>Archivo: {{ form.doc() }}</p>
+		<p>Hash firmado: {{ form.digest() }}</p>
 		<p>Certificado: {{ form.cert() }}</p>
 		<p>{{ form.submit }}</p>
 	</form>

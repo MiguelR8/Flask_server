@@ -1,7 +1,7 @@
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileField, FileAllowed, FileRequired
-from wtforms import StringField, PasswordField, BooleanField, SubmitField, SelectMultipleField
-from wtforms.validators import InputRequired, Length
+from wtforms import StringField, PasswordField, BooleanField, SubmitField, SelectMultipleField, TextAreaField
+from wtforms.validators import InputRequired, Length, required
 from app import models
 
 class RegisterForm(FlaskForm):
@@ -18,12 +18,12 @@ class LoginForm(FlaskForm):
 
 class PDFUploadForm(FlaskForm):
 	doc    = FileField('PDF', validators=[FileRequired(message='El archivo es obligatorio'), FileAllowed(['pdf'], message='El archivo debe ser un PDF')])
-	#certificate or something else?
-	cert   = FileField('certificate', validators=[FileRequired(message='El archivo es obligatorio'), FileAllowed(['p12', 'pfx'], message='El archivo debe ser del formato PKCS#12')])
+	cert   = FileField('certificate', validators=[FileRequired(message='El archivo es obligatorio'), FileAllowed(['pem'], message='El archivo debe ser PEM')])
+	digest = TextAreaField('signed hash', validators=[required('Campo obligatorio')])
 	submit = SubmitField('Subir')
 	
 class NewGroupForm(FlaskForm):
 	name    = StringField('name', validators=[InputRequired(message='Nombre obligatorio'), Length(max=50, min=3, message='Nombre debe tener entre 3 y 50 caracteres')])
-	members = SelectMultipleField(u'Members', choices=[(u.id, u.name) for u in models.User.query.all()], coerce=int)
+	members = SelectMultipleField(u'Members', choices=lambda : [(u.id, u.name) for u in models.User.query.all()], coerce=int)
 	submit = SubmitField('Crear grupo')
 	

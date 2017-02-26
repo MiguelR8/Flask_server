@@ -4,6 +4,12 @@ from os import sep
 import subprocess
 #import requests
 #from datetime import datetime, timedelta
+from cryptography.hazmat.primitives import serialization
+from hashlib import sha512
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.backends import default_backend
+from cryptography import x509
 
 def getCryptoExt(file_ext):
 	if file_ext.lower() == 'der':
@@ -39,6 +45,71 @@ def getCommonName(location, issuer=False):
 	
 	cert = getX509FromFile(location)
 	return cert.get_subject().CN if not issuer else cert.get_issuer().CN
+
+#With PEM key and SHA512 hashing and padding only
+def encrypt_hash(f_path, k_path, password = None):
+	#load pkey
+	with open(k_path, 'rb') as key_file:
+		private_key = serialization.load_pem_private_key(
+			key_file.read(),
+			password = password,
+			backend = default_backend()
+		)
+
+	#hash message
+	with open(f_path, 'rb') as f:
+		digest = sha512(f.read()).hexdigest()
+	
+	#encrypt hash
+	signer = private_key.signer (
+		padding.PSS (
+			mgf = padding.MGF1(hashes.SHA512()),
+			salt_length = padding.PSS.MAX_LENGTH
+		),
+		hashes.SHA512()
+	)
+	signer.update(digest)
+	return digest, signer.finalize()
+	
+#With PEM key and SHA512 hashing and padding only
+#raises InvalidSignature on validation failure
+def verify_hash(digest, signature, k_bytes):
+	#load pkey
+	public_key = serialization.load_pem_public_key(
+		k_bytes,
+		backend = default_backend()
+	)
+	#verify signature
+	verifier = public_key.verifier (
+		signature,
+		padding.PSS (
+			mgf = padding.MGF1(hashes.SHA512()),
+			salt_length = padding.PSS.MAX_LENGTH
+		),
+		hashes.SHA512()
+	)
+	verifier.update(digest)
+	verifier.verify()
+   
+#With PEM certificate and SHA512 hashing and padding only
+#raises InvalidSignature on validation failure
+def verify_hash_with_certificate(digest, signature, cert_bytes):
+	#get pkey
+	public_key = x509.load_pem_x509_certificate(
+		cert_bytes,
+		backend = default_backend()
+	).public_key()
+	#verify signature
+	verifier = public_key.verifier (
+		signature,
+		padding.PSS (
+			mgf = padding.MGF1(hashes.SHA512()),
+			salt_length = padding.PSS.MAX_LENGTH
+		),
+		hashes.SHA512()
+	)
+	verifier.update(digest)
+	verifier.verify()
 
 #~ def parseX509ConfigOpt(line):
 	#~ ret = []

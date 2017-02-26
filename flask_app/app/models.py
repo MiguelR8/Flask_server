@@ -38,4 +38,5 @@ class SignedDoc(db.Model):
 	id     = db.Column(db.Integer, primary_key = True)
 	name   = db.Column(db.String(50))
 	author = db.Column(db.Integer, db.ForeignKey('user.id'))	#for now, groups don't write documents
-	signed_digest = db.Column(db.String(348), nullable = False, unique = True)	#SHA512 hash signature
+	digest = db.Column(db.String(128), nullable = False)		#SHA512 hash hexdump
+	signed_digest = db.Column(db.String(349), nullable = False)	#Base64 encoded SHA512 hash signature

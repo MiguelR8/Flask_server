@@ -1,9 +1,8 @@
 {% extends "base.html" %}
 {% block content %}
-<table title="{{data.title}}">
+<table title="{{data.title}}" id="document_table">
 	<thead>
 		<th>Nombre del grupo</th>
-		<th>Clave pública</th>
 		<th>Documentos disponibles</th>
 		<th>Hash y firma</th>
 	</thead>
@@ -11,11 +10,10 @@
 	{% for group in data.data %}
 		<tr>
 			<td>{{group.name}}</td>
-			<td>{{group.pkey}}</td>
 			<td>{{group.documents|count}}</td>
 			<td>
 				{% for doc in group.documents %}
-					<p>{{"%x - %s"|format(doc.hash, doc.sig)}}</p>
+					<p>{{"%s - %s"|format(doc.hash, doc.sig)}}</p>
 				{% endfor %}
 			</td>
 		</tr>

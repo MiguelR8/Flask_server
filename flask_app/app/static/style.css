@@ -25,3 +25,10 @@ a {
 aside > a {
   font-weight: bold;
 }
+
+#document_table {
+  width : 90%;
+  word-break: break-all;
+  text-align: justify;
+  table-layout: fixed;
+}

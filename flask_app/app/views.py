@@ -13,18 +13,18 @@ from cryptotools import getCommonName, verify_hash_with_certificate
 
 from hashlib import sha512
 
+def signed_documents_to_json():
+	results = []
+	for u in models.User.query.all():
+		docs = []
+		for d in models.SignedDoc.query.filter_by(author = u.id).all():
+			docs.append({'hash':d.digest, 'sig':d.signed_digest.replace("\n", '')})
+		results.append({'name': u.name, 'documents':docs})
+	return results
+
 data = {'/index.html':
                 {'title': u'Grupos',
-                'data':[
-                        {'name':'GroupA', 'documents':[
-                                {'hash':0x123456, 'sig':'xq1wd8vm4kt'},
-                                {'hash':0x1e9c3a, 'sig':'fk93j+ds.df'}
-                        ], 'pkey': 'alsjkvn234'},
-                        {'name':'GroupB', 'documents':[
-                                {'hash':0x14c6b9, 'sig':'klcfjsgkihs'},
-                                {'hash':0x5b0733, 'sig':'csedf#zs=(g'}
-                        ], 'pkey': 'oopwcksjf5'}
-                ]},
+                'data': signed_documents_to_json()},
         '/login.html':
                 {'title': u'Iniciar sesión'},
         '/doc_upload.html':
@@ -114,8 +114,8 @@ def upload_main():
 	if form.validate_on_submit():
 		
 		doc = request.files['doc']
-		cert = request.files['cert']
-		#TODO: verify certificate belongs to logged user
+		with open(os.path.join(app.config['USER_CERTIFICATE_FOLDER'], current_user.name + '.pem')) as f:
+			cert_bytes = f.read()
 		
 		signed = str(form.digest.data)
 		if not signed.endswith("\n"):	#every byte counts
@@ -128,17 +128,16 @@ def upload_main():
 		pdfLocation = os.path.join(app.config['DOCUMENT_UPLOAD_FOLDER'], os.path.basename(doc.filename))
 		doc.save(pdfLocation)
 		try:
-			verify_hash_with_certificate(digest, signed, cert.stream.read())
+			verify_hash_with_certificate(digest, signed, cert_bytes)
 		except Exception:
 			flash(u'Error de validación: el documento y certificado no corresponden con la firma')
 			return render_template('doc_upload.html', data=data['/doc_upload.html'], form=form)
 		
-		certLocation = os.path.join(app.config['DOCUMENT_UPLOAD_FOLDER'], os.path.basename(doc.filename))
-		cert.save(certLocation)	#necessary?
-		
-		#TODO: save to database
-		#db.session.add(models.SignedDoc(naem = os.path.basename(doc.filename), author = , signed_digest = signed))
-		#db.commit()
+		db.session.add(models.SignedDoc(name = os.path.basename(doc.filename),\
+			author = current_user.id,\
+			digest = unicode(digest),
+			signed_digest = unicode(signed.encode('base64'))))
+		db.session.commit()
 		
 		#os.remove(pdfLocation)
 		return redirect('/')

@@ -18,7 +18,6 @@ class LoginForm(FlaskForm):
 
 class PDFUploadForm(FlaskForm):
 	doc    = FileField('PDF', validators=[FileRequired(message='El archivo es obligatorio'), FileAllowed(['pdf'], message='El archivo debe ser un PDF')])
-	cert   = FileField('certificate', validators=[FileRequired(message='El archivo es obligatorio'), FileAllowed(['pem'], message='El archivo debe ser PEM')])
 	digest = TextAreaField('signed hash', validators=[required('Campo obligatorio')])
 	submit = SubmitField('Subir')
 	

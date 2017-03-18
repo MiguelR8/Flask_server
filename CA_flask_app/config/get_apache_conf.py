@@ -2,7 +2,7 @@ import os
 from sys import executable
 
 cwd = os.sep.join(os.path.abspath(__file__).split(os.sep)[:-2])	#../
-print cwd
+
 url = os.environ['SERVER_URL']
 port = os.environ['SERVER_PORT']
 target = os.path.join(cwd, url + '.conf')

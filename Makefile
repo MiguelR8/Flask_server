@@ -1,10 +1,8 @@
 CA_USER=certd
 
 all: setup-certificates
-	cd CA_flask_app
-	make configure-ws
-	cd ../flask_app
-	make configure-ws
+	make -C CA_flask_app configure-ws
+	make -C flask_app configure-ws
 
 CA_flask_app/cert:
 	mkdir -p $@

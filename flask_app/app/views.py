@@ -1,6 +1,6 @@
 # coding=utf-8
 from app import app, db, lm
-import models
+from app import models
 from flask import render_template, redirect, request, flash
 from .forms import LoginForm, PDFUploadForm, RegisterForm, NewGroupForm
 from flask_login import login_user, logout_user, current_user, login_required
@@ -151,16 +151,14 @@ def create_group():
 	if form.validate_on_submit():
 		group_name = unicode(form.name.data)
 		if models.Group.query.filter_by(name = group_name).first() is None:
+			#validate challenge
+			
 			#add group
 			db.session.add(models.Group(name = group_name))
 			db.session.commit()
 			
 			gid = models.Group.query.filter_by(name = group_name).first().id
-			#and add members
-			for u in form.members:
-				uid = u.data
-				db.session.add(models.Membership(group = gid, member = uid))
-			db.session.commit()
+			#save keys
 			
 			return redirect('/')
 		flash(u'Grupo ya existe con ese nombre')

@@ -1,11 +1,5 @@
 from app import db
 
-#User to Group relation
-class Membership(db.Model):
-	id	   = db.Column(db.Integer, primary_key = True)
-	group  = db.Column(db.ForeignKey('group.id'))
-	member = db.Column(db.ForeignKey('user.id'))
-
 class User(db.Model):
 	id		 = db.Column(db.Integer, primary_key = True)
 	name	 = db.Column(db.String(50), nullable = False, unique = True)
@@ -28,6 +22,12 @@ class User(db.Model):
 	
 	#cert	 = db.Column(db.String(50), nullable = False, unique = True)	#location is USER_CERTIFICATE_FOLDER/self.name
 	#can the user have several certificates? 
+	
+#User to Group relation
+class Membership(db.Model):
+	id	   = db.Column(db.Integer, primary_key = True)
+	group  = db.Column(db.ForeignKey('group.id'))
+	member = db.Column(db.ForeignKey('user.id'))
 	
 class Group(db.Model):
 	id	    = db.Column(db.Integer, primary_key = True)

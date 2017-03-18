@@ -3,6 +3,7 @@ SERVER_URL=www.omnisign.com
 SERVER_PORT=5001
 APP_NAME=cert_app
 APACHE_USER=certd
+PY_EXEC=python3
 export SERVER_PORT
 export SERVER_URL
 export APP_NAME
@@ -10,7 +11,7 @@ export APACHE_USER
 
 ##Virtualenv and app setup
 $(VENV_HOME):
-	virtualenv $@
+	virtualenv -p $(PY_EXEC) $@
 	
 ~$(APACHE_USER):
 	sudo useradd $(APACHE_USER)
@@ -29,7 +30,7 @@ app-setup: venv_setup.sh $(VENV_HOME) ~$(APACHE_USER)
 app-prerequisites: app-setup /etc/apache2/sites-available/$(SERVER_URL).conf
 
 /etc/apache2/sites-available/$(SERVER_URL).conf: config/get_apache_conf.py
-	python config/get_apache_conf.py
+	$(PY_EXEC) config/get_apache_conf.py
 	sudo mv $(SERVER_URL).conf /etc/apache2/sites-available/$(SERVER_URL).conf
 	
 ## Apache setup (v2.4+)

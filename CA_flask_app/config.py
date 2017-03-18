@@ -19,7 +19,7 @@ from getpass import getuser
 
 STORAGE_ROOT = os.path.expanduser('~' + getuser())
 #one-liner to get random secret key of 20 printable characters
-SECRET_KEY = ''.join([(string.letters + string.digits + string.punctuation)[ord(os.urandom(1)) % 94] for i in range(20)])
+SECRET_KEY = ''.join([(string.ascii_letters + string.digits + string.punctuation)[ord(os.urandom(1)) % 94] for i in range(20)])
 CERT_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'cert', 'rootcert.pem')
 PKEY_PATH = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'cert', 'rootkey.pem')
 REQ_UPLOAD_FOLDER = os.path.join(STORAGE_ROOT, 'reqs')

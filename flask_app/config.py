@@ -15,10 +15,11 @@ def activate_venv():
 
 WTF_CSRF_ENABLED = True
 #one-liner to get random secret key of 20 printable characters
-SECRET_KEY = ''.join([(string.letters + string.digits + string.punctuation)[ord(os.urandom(1)) % 94] for i in range(20)])
+SECRET_KEY = ''.join([(string.ascii_letters + string.digits + string.punctuation)[ord(os.urandom(1)) % 94] for i in range(20)])
 SQLALCHEMY_DATABASE_URI = 'sqlite:///' + os.path.join(STORAGE_ROOT, 'app.db')
 SQLALCHEMY_MIGRATE_REPO = os.path.join(STORAGE_ROOT, 'db_repository')
 DB_CURRENT_VERSION_FILE = os.path.join(SQLALCHEMY_MIGRATE_REPO, 'current_version')
 DOCUMENT_UPLOAD_FOLDER = os.path.join(STORAGE_ROOT, 'uploads')
 USER_CERTIFICATE_FOLDER = os.path.join(STORAGE_ROOT, 'certs')
+GROUP_KEYS_FOLDER = os.path.join(STORAGE_ROOT, 'group_keys')
 #PDF_SIGN_CONF_FILE = os.path.join(os.path.realpath(__file__), 'mypdfsigner.conf')

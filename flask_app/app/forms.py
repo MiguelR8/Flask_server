@@ -23,6 +23,8 @@ class PDFUploadForm(FlaskForm):
 	
 class NewGroupForm(FlaskForm):
 	name    = StringField('name', validators=[InputRequired(message='Nombre obligatorio'), Length(max=50, min=3, message='Nombre debe tener entre 3 y 50 caracteres')])
-	members = SelectMultipleField(u'Members', choices=lambda : [(u.id, u.name) for u in models.User.query.all()], coerce=int)
+	master_key = TextAreaField('master group key', validators=[required('Campo obligatorio')])
+	public_keys = TextAreaField('group public keys', validators=[required('Campo obligatorio')])
+	challenge = TextAreaField('challenge', validators=[required('Campo obligatorio')])
 	submit = SubmitField('Crear grupo')
 	

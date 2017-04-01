@@ -2,8 +2,11 @@
 {% block content %}
 	<form action="" method="post" name="create_group">
 		{{ form.hidden_tag() }}
-		<p>Nombre: {{ form.name }}</p>
-		<p>Miembros: {{ form.members }}</p>
+		<p>Nombre del grupo: {{ form.name }}</p>
+		<p>Clave pública del grupo: {{ form.master_key }}</p>
+		<p>Claves públicas conocidas : {{ form.public_keys }}</p>
+		<p>Desafío: {{ data.challenge }}</p>
+		<p>Respuesta: {{ form.answer }}</p>
 		<p>{{ form.submit }}</p>
 	</form>
 {% endblock %}

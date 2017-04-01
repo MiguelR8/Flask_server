@@ -28,17 +28,17 @@ cert/servercert.pem: cert
 
 ##Virtualenv and app setup
 $(VENV_HOME):
-	virtualenv -p $(PY_EXEC) $@
+	virtualenv -p $(PY_EXEC) --system-site-packages $@
 	
 ~$(APACHE_USER):
 	sudo useradd $(APACHE_USER)
 	sudo passwd $(APACHE_USER)
 	sudo mkdir -p ~$(APACHE_USER)/uploads
 	sudo mkdir -p ~$(APACHE_USER)/certs
+	sudo mkdir -p ~$(APACHE_USER)/group_keys
 	sudo chown -R $(APACHE_USER) ~$(APACHE_USER)
 	
 app-setup: venv_setup.sh $(VENV_HOME) ~$(APACHE_USER) cert/servercert.pem
-	sudo -H sh venv_setup.sh
 	test -e ~$(APACHE_USER)/app.db || su -c "$(PY_EXEC) db_create.py" $(APACHE_USER)
 	
 ~$(APACHE_USER)/db_repository:

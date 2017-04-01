@@ -4,6 +4,7 @@ SERVER_PORT=5001
 APP_NAME=cert_app
 APACHE_USER=certd
 PY_EXEC=python3
+
 export SERVER_PORT
 export SERVER_URL
 export APP_NAME
@@ -11,7 +12,7 @@ export APACHE_USER
 
 ##Virtualenv and app setup
 $(VENV_HOME):
-	virtualenv -p $(PY_EXEC) $@
+	virtualenv -p $(PY_EXEC) --system-site-packages $@
 	
 ~$(APACHE_USER):
 	sudo useradd $(APACHE_USER)

@@ -3,7 +3,11 @@
 	<form action="" method="post" name="upload" enctype="multipart/form-data">
 		{{ form.hidden_tag() }}
 		<p>Archivo: {{ form.doc() }}</p>
+		<p>Tipo de firma: {{ form.signtype }}</p>
 		<p>Hash firmado: {{ form.digest() }}</p>
+		<p>Nombre de grupo (si aplica) : {{ form.group_name }}</p>
+		<p>Claves públicas (si aplica a grupo, si no se especifican se usarán las registradas al crear el grupo)</p>
+		<p>{{ form.public_keys}}</p>
 		<p>{{ form.submit }}</p>
 	</form>
 {% endblock %}

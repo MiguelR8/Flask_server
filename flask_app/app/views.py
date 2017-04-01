@@ -9,7 +9,7 @@ import os
 import sys
 #allow import from cryptotools path
 sys.path.insert(0, os.sep.join(os.path.abspath(__file__).split(os.sep)[:-3]))
-from cryptotools import getCommonName, verify_hash_with_certificate
+from cryptotools import getCommonName, verify_hash_with_certificate, hash_object, verify_boyen
 
 from hashlib import sha512
 
@@ -19,10 +19,19 @@ def signed_documents_to_json():
 		docs = []
 		for d in models.SignedDoc.query.filter_by(author = u.id).all():
 			docs.append({'hash':d.digest, 'sig':d.signed_digest.replace("\n", '')})
-		results.append({'name': u.name, 'documents':docs})
+		if len(docs) > 0:
+			results.append({'name': u.name, 'documents':docs})
+	for g in models.Group.query.all():
+		docs = []
+		for d in models.SignedDoc.query.filter_by(author = g.id).all():
+			docs.append({'hash':d.digest, 'sig':d.signed_digest.replace("\n", '')})
+		if len(docs) > 0:
+			results.append({'name': g.name, 'documents':docs})
 	return results
 
-data = {'/index.html':
+#wrap in a function to delay loading until really needed
+def data_for(key):
+	return {'/index.html':
                 {'title': u'Grupos',
                 'data': signed_documents_to_json()},
         '/login.html':
@@ -32,8 +41,8 @@ data = {'/index.html':
         '/register.html':
 				{'title': u'Crear cuenta'},
 		'/register_group.html':
-				{'title': u'Crear grupo'}
-        }
+				{'title': u'Crear grupo', 'challenge' : 'Cifre este texto para verificar que es miembro del grupo'}
+        }[key]
 
 def flash_errors(form):
 	for field in form:
@@ -56,22 +65,22 @@ def load_user(id):
 @app.route('/')
 @app.route('/index')
 def index():
-	return render_template('index.html', data=data['/index.html'])
+	return render_template('index.html', data=data_for('/index.html'))
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
 	redirect_if_logged_in('/')
 	form = LoginForm()
 	if form.validate_on_submit():
-		h = sha512(form.password.data).digest().decode('utf_16')	#to Unicode
-		user = models.User.query.filter_by(name = unicode(form.username.data), password = h).first()
+		h = hash_object(form.password.data)
+		user = models.User.query.filter_by(name = form.username.data, password = h).first()
 		if user is None:
 			flash(u'Usuario o contraseña incorrectos')
 		else:
 			login_user(user, remember = form.remember_me.data)
 			return redirect('/index')
 	flash_errors(form)
-	return render_template('login.html', data=data['/login.html'], form=form)
+	return render_template('login.html', data=data_for('/login.html'), form=form)
 	
 @app.route('/logout')
 def logout():
@@ -86,10 +95,11 @@ def register():
 		if models.User.query.filter_by(name = form.username.data).first():
 			flash('Usuario ya existe')
 		else:
-			h = sha512(form.password.data).digest().decode('utf_16')
-			user = models.User(name = unicode(form.username.data), password = h)
+			h = hash_object(form.password.data)
+			user = models.User(name = form.username.data, password = h)
 			ext = '.' + request.files['cert'].filename.split('.')[-1]
-			cert = os.path.join(app.config['USER_CERTIFICATE_FOLDER'], form.username.data + ext)
+			cert = os.path.join(app.config['USER_CERTIFICATE_FOLDER'],
+					form.username.data + ext)
 			request.files['cert'].save(cert)
 			#TODO: validate chain of trust
 			try:
@@ -104,7 +114,8 @@ def register():
 			#remove on failure
 			os.remove(cert)
 	flash_errors(form)
-	return render_template('register.html', data=data['/register.html'], form=form)
+	return render_template('register.html', data=data_for('/register.html'),
+			form=form)
 
 
 @app.route('/upload', methods=['GET', 'POST'])
@@ -114,54 +125,86 @@ def upload_main():
 	if form.validate_on_submit():
 		
 		doc = request.files['doc']
-		with open(os.path.join(app.config['USER_CERTIFICATE_FOLDER'], current_user.name + '.pem')) as f:
-			cert_bytes = f.read()
+		#TODO: clean up
+		signed = form.digest.data
+		signtype = form.signtype.data
 		
-		signed = str(form.digest.data)
-		if not signed.endswith("\n"):	#every byte counts
-			signed += "\n"
-		signed = signed.decode('base64')
-		#get doc hash
-		digest = sha512(doc.stream.read()).hexdigest()
-		
-		
-		pdfLocation = os.path.join(app.config['DOCUMENT_UPLOAD_FOLDER'], os.path.basename(doc.filename))
+		pdfLocation = os.path.join(app.config['DOCUMENT_UPLOAD_FOLDER'],
+			os.path.basename(doc.filename))
 		doc.save(pdfLocation)
-		try:
-			verify_hash_with_certificate(digest, signed, cert_bytes)
-		except Exception:
-			flash(u'Error de validación: el documento y certificado no corresponden con la firma')
-			return render_template('doc_upload.html', data=data['/doc_upload.html'], form=form)
-		
-		db.session.add(models.SignedDoc(name = os.path.basename(doc.filename),\
-			author = current_user.id,\
-			digest = unicode(digest),
-			signed_digest = unicode(signed.encode('base64'))))
-		db.session.commit()
-		
-		#os.remove(pdfLocation)
-		return redirect('/')
+		digest = hash_object(pdfLocation, isFile = True)
+		if signtype == 1:		#RSA
+			try:
+				verify_hash_with_certificate(digest,
+					signed,
+					os.path.join(app.config['USER_CERTIFICATE_FOLDER'],
+						current_user.name + '.pem'))
+				db.session.add(models.SignedDoc(name = os.path.basename(doc.filename),
+					author = current_user.id,
+					digest = digest,
+					signed_digest = signed))
+				db.session.commit()
+				
+				return redirect('/')
+			except Exception:
+				flash('Error de validación: el documento y/o certificado no corresponden con la firma')
+		elif signtype == 2:		#Boyen
+			group_name = form.group_name.data
+			g = models.Group.query.filter_by(name = group_name).first()
+			if g is None:
+				flash('Grupo no registrado, debe crearse antes de subir documentos')
+			else:
+				public_keys = form.public_keys.data.strip()
+				if len(public_keys) == 0:		#load saved keys instead
+					with open(os.path.join(app.config['GROUP_KEYS_FOLDER'], str(g.id) + '.pkeys')) as f:
+						public_keys = f.read()
+				
+				with open(os.path.join(app.config['GROUP_KEYS_FOLDER'], str(g.id) + '.mkey')) as f:
+					master_key = f.read()
+				
+				if verify_boyen(master_key, public_keys, digest, signed):
+					return redirect('/')
+				else:
+					flash('Fallo de validación, verifique que las claves y la firma son correctas')
+		else:
+			flash('Tipo de firma incorrecto, elija otro')
+		os.remove(pdfLocation)
 	flash_errors(form)
-	return render_template('doc_upload.html', data=data['/doc_upload.html'], form=form)
+	return render_template('doc_upload.html', data=data_for('/doc_upload.html'), form=form)
 	
 @app.route('/register_group', methods=['GET', 'POST'])
 @login_required
 def create_group():
 	form = NewGroupForm()
 	if form.validate_on_submit():
-		group_name = unicode(form.name.data)
+		group_name = form.name.data
+		master_key = form.master_key.data
+		public_keys = form.public_keys.data
+		challenge = form.answer.data
 		if models.Group.query.filter_by(name = group_name).first() is None:
 			#validate challenge
-			
-			#add group
-			db.session.add(models.Group(name = group_name))
-			db.session.commit()
-			
-			gid = models.Group.query.filter_by(name = group_name).first().id
-			#save keys
-			
-			return redirect('/')
-		flash(u'Grupo ya existe con ese nombre')
-	flash_errors(form)
-	return render_template('register_group.html', data=data['/register_group.html'], form=form)
+			if (verify_boyen(master_key, public_keys,
+					data_for('/register_group.html')['challenge'],
+					challenge)):
+				#add group
+				db.session.add(models.Group(name = group_name))
+				db.session.commit()
+				
+				gid = str(models.Group.query.filter_by(name = group_name).first().id)
+				#save keys
+				with open(os.path.join(app.config['GROUP_KEYS_FOLDER'],
+						gid + '.mkey'), 'w') as f:
+					f.write(master_key)
+				with open(os.path.join(app.config['GROUP_KEYS_FOLDER'],
+						gid + '.pkeys'), 'w') as f:
+					f.write(public_keys)
+				
+				return redirect('/')
+			else:
+				flash('Fallo de validación, verifique que las claves y la firma son correctas')
+		else:
+			flash(u'Grupo ya existe con ese nombre')
+	else:
+		flash_errors(form)
+	return render_template('register_group.html', data=data_for('/register_group.html'), form=form)
 	

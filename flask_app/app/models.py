@@ -3,7 +3,7 @@ from app import db
 class User(db.Model):
 	id		 = db.Column(db.Integer, primary_key = True)
 	name	 = db.Column(db.String(50), nullable = False, unique = True)
-	password = db.Column(db.String(64), nullable = False)					#for now, the sha512
+	password = db.Column(db.String(80), nullable = False)					#for now, the sha512 (actual size depends on len(cryptotools.hash_object(...)))
 	
 	@property
 	def is_active(self):
@@ -18,9 +18,7 @@ class User(db.Model):
 		return False
 		
 	def get_id(self):
-		return unicode(self.id)
-	
-	#cert	 = db.Column(db.String(50), nullable = False, unique = True)	#location is USER_CERTIFICATE_FOLDER/self.name
+		return str(self.id)
 	#can the user have several certificates? 
 	
 #User to Group relation
@@ -32,11 +30,12 @@ class Membership(db.Model):
 class Group(db.Model):
 	id	    = db.Column(db.Integer, primary_key = True)
 	name    = db.Column(db.String(50), nullable = False, unique = True)
-	#admin   = db.Column(db.ForeignKey('user.id'))				#need to enforce membership to apply to admin (at controller level)
+	#admin   = db.Column(db.ForeignKey('user.id'))				#no admins for group schemes, yet
 
 class SignedDoc(db.Model):
 	id     = db.Column(db.Integer, primary_key = True)
 	name   = db.Column(db.String(50))
-	author = db.Column(db.Integer, db.ForeignKey('user.id'))	#for now, groups don't write documents
-	digest = db.Column(db.String(128), nullable = False)		#SHA512 hash hexdump
-	signed_digest = db.Column(db.String(349), nullable = False)	#Base64 encoded SHA512 hash signature
+	author = db.Column(db.Integer)								#for now, there isn't a way to constrain on the database level author in (user.id, group,id)
+	isUser = db.Column(db.Boolean, nullable = False)			#so a mask will be used
+	digest = db.Column(db.String(80), nullable = False)			#SHA512 hash (actual size depends on len(cryptotools.hash_object(...)))
+	signed_digest = db.Column(db.String(320), nullable = False)	#hash's signature	(actual size depends on len(cryptotools.encrypt_hash_object(...)))

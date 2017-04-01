@@ -1,6 +1,6 @@
 CA_USER=certd
 
-all: setup-certificates
+all: setup-certificates setup-charm
 	make -C CA_flask_app configure-ws
 	make -C flask_app configure-ws
 
@@ -23,3 +23,6 @@ CA_flask_app/cert/rootcert.pem: CA_flask_app/cert/rootkey.pem CA_flask_app/confi
 	chmod a+r flask_app/cert/rootcert.pem
 
 setup-certificates: CA_flask_app/cert/rootcert.pem
+
+setup-charm:
+	python3 -c "import charm" || (echo "Charm is not installed, go to https://jhuisi.github.io/charm/install_source.html and follow the instructions" && exit 1)

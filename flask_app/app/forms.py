@@ -19,7 +19,7 @@ class LoginForm(FlaskForm):
 class PDFUploadForm(FlaskForm):
 	doc      = FileField('PDF', validators=[FileRequired(message='El archivo es obligatorio'), FileAllowed(['pdf'], message='El archivo debe ser un PDF')])
 	signtype = SelectField('signature type', choices = [(1, 'RSA'), (2, 'Boyen')], default=1, coerce=int, validators=[required('Campo obligatorio')])
-	group_name  = StringField('username', validators=[Length(max=30, min=3, message='Nombre debe tener entre 3 y 30 caracteres')])
+	group_name  = StringField('username')
 	public_keys = TextAreaField('group public keys')
 	digest   = TextAreaField('signed hash', validators=[required('Campo obligatorio')])
 	submit   = SubmitField('Subir')
@@ -30,4 +30,16 @@ class NewGroupForm(FlaskForm):
 	public_keys = TextAreaField('group public keys', validators=[required('Campo obligatorio')])
 	answer = TextAreaField('challenge answer', validators=[required('Campo obligatorio')])
 	submit = SubmitField('Crear grupo')
+
+class DocSearchForm(FlaskForm):
+	doc    = FileField('PDF', validators=[FileRequired(message='El archivo es obligatorio'), FileAllowed(['pdf'], message='El archivo debe ser un PDF')])
+	submit = SubmitField('Buscar por documento')
+
+class UserSearchForm(FlaskForm):
+	#delay query until database is created
+	class UserIter:
+		def __iter__(self):
+			return [(u.id, u.name) for u in models.User.query.all()].__iter__()
 	
+	user = SelectField('user', choices = UserIter(), coerce=int, validators=[required('Campo obligatorio')])
+	submit = SubmitField('Buscar por usuario')

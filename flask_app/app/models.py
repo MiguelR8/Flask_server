@@ -33,9 +33,9 @@ class Group(db.Model):
 	#admin   = db.Column(db.ForeignKey('user.id'))				#no admins for group schemes, yet
 
 class SignedDoc(db.Model):
-	id     = db.Column(db.Integer, primary_key = True)
-	name   = db.Column(db.String(50))
-	author = db.Column(db.Integer)								#for now, there isn't a way to constrain on the database level author in (user.id, group,id)
-	isUser = db.Column(db.Boolean, nullable = False)			#so a mask will be used
-	digest = db.Column(db.String(80), nullable = False)			#SHA512 hash (actual size depends on len(cryptotools.hash_object(...)))
+	id      = db.Column(db.Integer, primary_key = True)
+	name    = db.Column(db.String(50))
+	author  = db.Column(db.Integer)								#for now, there isn't a way to constrain on the database level author in (user.id, group,id)
+	is_user = db.Column(db.Boolean, nullable = False)			#so a mask will be used
+	digest  = db.Column(db.String(80), nullable = False)		#SHA512 hash (actual size depends on len(cryptotools.hash_object(...)))
 	signed_digest = db.Column(db.String(320), nullable = False)	#hash's signature	(actual size depends on len(cryptotools.encrypt_hash_object(...)))

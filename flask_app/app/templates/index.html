@@ -1,24 +1,96 @@
 {% extends "base.html" %}
 {% block content %}
 <table title="{{data.title}}" id="document_table">
-	<thead>
-		<th>Nombre del grupo</th>
-		<th>Documentos disponibles</th>
-		<th>Hash y firma</th>
-	</thead>
-	<tbody>
-	{% for group in data.data %}
-		<tr>
-			<td>{{group.name}}</td>
-			<td>{{group.documents|count}}</td>
-			<td>
-				{% for doc in group.documents %}
-					<p>{{"%s - %s"|format(doc.hash, doc.sig)}}</p>
-				{% endfor %}
-			</td>
-		</tr>
-	{% endfor %}
-	</tbody>
+	{% if results %}
+		<section>
+			{% if results is string %}
+				{% if results|count > 0 %}
+					<p>El documento pertenece al autor {{ results }}</p>
+				{% else %}
+					<p>Documento no encontrado</p>
+				{% endif %}
+			{% else %}
+				{% if results|count > 0 %}
+					<thead>
+						<th>Nombre del autor</th>
+						<th>Documentos disponibles</th>
+						<th>Hash y firma</th>
+					</thead>
+					<tbody>
+						{% for user in results %}
+							<tr>
+								<td>{{user.name}}</td>
+								<td>{{user.documents|count}}</td>
+								<td>
+									{% for doc in user.documents %}
+										<p>{{"%s - %s"|format(doc.hash, doc.sig)}}</p>
+									{% endfor %}
+								</td>
+							</tr>
+						{% endfor %}
+					</tbody>
+				{% else %}
+					<p>No hay documentos que mostrar</p>
+				{% endif %}
+			{% endif %}
+		</section>
+	{% elif user_docs %}
+		<section>
+			<p>Mis documentos</p>
+			<table>
+				<thead>
+					<th>Nombre del documento</th>
+					<th>Hash</th>
+					<th>Firma</th>
+					<th></th>
+				</thead>
+				<tbody>
+					{% for doc in user_docs %}
+						<tr>
+							<td>{{doc.name}}</td>
+							<td>{{doc.hash}}</td>
+							<td>{{doc.sig}}</td>
+							<td>
+								<a href="/files/{{doc.name}}">Descargar</a>
+							</td>
+						</tr>
+					{% endfor %}
+				</tbody>
+			</table>
+		</section>
+	{% else %}
+		<section>
+			<thead>
+				<th>Nombre del autor</th>
+				<th>Documentos disponibles</th>
+				<th>Hash y firma</th>
+			</thead>
+			<tbody>
+			{% for author in data.data %}
+				<tr>
+					<td>{{author.name}}</td>
+					<td>{{author.documents|count}}</td>
+					<td>
+						{% for doc in author.documents %}
+							<p>{{"%s - %s"|format(doc.hash, doc.sig)}}</p>
+						{% endfor %}
+					</td>
+				</tr>
+			{% endfor %}
+			</tbody>
+		</section>
+		<section>
+			<p>Buscar documentos por autor, o autor por documento</p>
+			<form action="" method="post" name="docfind" enctype="multipart/form-data">
+				{{ dform.hidden_tag() }}
+				<p> Archivo: {{ dform.doc }} {{ dform.submit }} </p>
+			</form>
+			<form action="" method="post" name="userfind">
+				{{ uform.hidden_tag() }}
+				<p> Usuario: {{ uform.user }} {{ uform.submit }} </p>
+			</form>
+		</section>
+	{% endif %}
 </table>
 {% endblock %}
 

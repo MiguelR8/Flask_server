@@ -1,8 +1,8 @@
 # coding=utf-8
 from app import app, db, lm
 from app import models
-from flask import render_template, redirect, request, flash
-from .forms import LoginForm, PDFUploadForm, RegisterForm, NewGroupForm
+from flask import render_template, redirect, request, flash, send_file
+from .forms import *
 from flask_login import login_user, logout_user, current_user, login_required
 import os
 
@@ -13,26 +13,35 @@ from cryptotools import getCommonName, verify_hash_with_certificate, hash_object
 
 from hashlib import sha512
 
-def signed_documents_to_json():
+def signed_documents_to_json(uid=None):
 	results = []
-	for u in models.User.query.all():
-		docs = []
-		for d in models.SignedDoc.query.filter_by(author = u.id).all():
-			docs.append({'hash':d.digest, 'sig':d.signed_digest.replace("\n", '')})
-		if len(docs) > 0:
-			results.append({'name': u.name, 'documents':docs})
-	for g in models.Group.query.all():
-		docs = []
-		for d in models.SignedDoc.query.filter_by(author = g.id).all():
-			docs.append({'hash':d.digest, 'sig':d.signed_digest.replace("\n", '')})
-		if len(docs) > 0:
-			results.append({'name': g.name, 'documents':docs})
+	if uid is None:
+		for u in models.User.query.all():
+			docs = []
+			for d in models.SignedDoc.query.filter_by(author = u.id, is_user = True).all():
+				docs.append({'name': d.name, 'hash':d.digest, 'sig':d.signed_digest})
+			if len(docs) > 0:
+				results.append({'name': u.name, 'documents':docs})
+		for g in models.Group.query.all():
+			docs = []
+			for d in models.SignedDoc.query.filter_by(author = g.id, is_user = False).all():
+				docs.append({'name': d.name, 'hash':d.digest, 'sig':d.signed_digest})
+			if len(docs) > 0:
+				results.append({'name': g.name, 'documents':docs})
+	else:
+		u = models.User.query.filter_by(id = uid).first()
+		if  u is not None:
+			docs = []
+			for d in models.SignedDoc.query.filter_by(author = u.id, is_user = True).all():
+				docs.append({'name': d.name, 'hash':d.digest, 'sig':d.signed_digest})
+			if len(docs) > 0:
+				results.append({'name': u.name, 'documents':docs})
 	return results
 
 #wrap in a function to delay loading until really needed
 def data_for(key):
 	return {'/index.html':
-                {'title': u'Grupos',
+                {'title': u'Documentos firmados',
                 'data': signed_documents_to_json()},
         '/login.html':
                 {'title': u'Iniciar sesión'},
@@ -62,10 +71,42 @@ def load_user(id):
 
 ##URL renderers
 
-@app.route('/')
-@app.route('/index')
+@app.route('/', methods=['GET', 'POST'])
+@app.route('/index', methods=['GET', 'POST'])
 def index():
-	return render_template('index.html', data=data_for('/index.html'))
+	userform = UserSearchForm()
+	docform = DocSearchForm()
+	if not current_user.is_authenticated:
+		if userform.validate_on_submit() or docform.validate_on_submit():
+			if userform.validate_on_submit():
+				#fetch all documents from user
+				res = signed_documents_to_json(userform.user.data)
+			else:
+				#fetch user
+				res = ""
+				doc = request.files['doc']
+				pdfLocation = os.path.join(app.config['DOCUMENT_UPLOAD_FOLDER'],
+					'___' + os.path.basename(doc.filename))
+				doc.save(pdfLocation)
+				digest = hash_object(pdfLocation, isFile = True)
+				os.remove(pdfLocation)
+				
+				d = models.SignedDoc.query.filter_by(digest = digest).first()
+				if d is not None:
+					u = models.User.query.get(d.author)
+					if u is not None:
+						res = u.name
+			return render_template('index.html', data = data_for('/index.html'), results=res)
+		else:
+			flash_errors(userform)
+			flash_errors(docform)
+		return render_template('index.html', data=data_for('/index.html'),
+			uform = userform, dform = docform)
+	#Documents signed by user
+	udocs = signed_documents_to_json(current_user.id)
+	#And signed by a member of the group the user belongs to
+	#gdocs = 
+	return render_template('index.html', data = data_for('/index.html'), user_docs=udocs)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -131,43 +172,56 @@ def upload_main():
 		
 		pdfLocation = os.path.join(app.config['DOCUMENT_UPLOAD_FOLDER'],
 			os.path.basename(doc.filename))
+		filename = os.path.basename(doc.filename)
 		doc.save(pdfLocation)
 		digest = hash_object(pdfLocation, isFile = True)
-		if signtype == 1:		#RSA
-			try:
-				verify_hash_with_certificate(digest,
-					signed,
-					os.path.join(app.config['USER_CERTIFICATE_FOLDER'],
-						current_user.name + '.pem'))
-				db.session.add(models.SignedDoc(name = os.path.basename(doc.filename),
-					author = current_user.id,
-					digest = digest,
-					signed_digest = signed))
-				db.session.commit()
-				
-				return redirect('/')
-			except Exception:
-				flash('Error de validación: el documento y/o certificado no corresponden con la firma')
-		elif signtype == 2:		#Boyen
-			group_name = form.group_name.data
-			g = models.Group.query.filter_by(name = group_name).first()
-			if g is None:
-				flash('Grupo no registrado, debe crearse antes de subir documentos')
-			else:
-				public_keys = form.public_keys.data.strip()
-				if len(public_keys) == 0:		#load saved keys instead
-					with open(os.path.join(app.config['GROUP_KEYS_FOLDER'], str(g.id) + '.pkeys')) as f:
-						public_keys = f.read()
-				
-				with open(os.path.join(app.config['GROUP_KEYS_FOLDER'], str(g.id) + '.mkey')) as f:
-					master_key = f.read()
-				
-				if verify_boyen(master_key, public_keys, digest, signed):
-					return redirect('/')
-				else:
-					flash('Fallo de validación, verifique que las claves y la firma son correctas')
+		
+		#Verify file hasn't been uploaded yet (trusting collision freedom of SHA512)
+		if models.SignedDoc.query.filter_by(digest = digest).first() is not None:
+			flash('Archivo ya existe')
 		else:
-			flash('Tipo de firma incorrecto, elija otro')
+			if signtype == 1:		#RSA
+				try:
+					verify_hash_with_certificate(digest,
+						signed,
+						os.path.join(app.config['USER_CERTIFICATE_FOLDER'],
+							current_user.name + '.pem'))
+					db.session.add(models.SignedDoc(name = filename,
+						author = current_user.id,
+						is_user = True,
+						digest = digest,
+						signed_digest = signed))
+					db.session.commit()
+					
+					return redirect('/')
+				except Exception:
+					flash('Error de validación: el documento y/o certificado no corresponden con la firma')
+			elif signtype == 2:		#Boyen
+				group_name = form.group_name.data
+				g = models.Group.query.filter_by(name = group_name).first()
+				if g is None:
+					flash('Grupo no registrado, debe crearse antes de subir documentos')
+				else:
+					public_keys = form.public_keys.data.strip()
+					if len(public_keys) == 0:		#load saved keys instead
+						with open(os.path.join(app.config['GROUP_KEYS_FOLDER'], str(g.id) + '.pkeys')) as f:
+							public_keys = f.read()
+					
+					with open(os.path.join(app.config['GROUP_KEYS_FOLDER'], str(g.id) + '.mkey')) as f:
+						master_key = f.read()
+					
+					if verify_boyen(master_key, public_keys, digest, signed):
+						db.session.add(models.SignedDoc(name = filename,
+							author = g.id,
+							is_user = False,
+							digest = digest,
+							signed_digest = signed))
+						db.session.commit()
+						return redirect('/')
+					else:
+						flash('Fallo de validación, verifique que las claves y la firma son correctas')
+			else:
+				flash('Tipo de firma incorrecto, elija otro')
 		os.remove(pdfLocation)
 	flash_errors(form)
 	return render_template('doc_upload.html', data=data_for('/doc_upload.html'), form=form)
@@ -208,3 +262,7 @@ def create_group():
 		flash_errors(form)
 	return render_template('register_group.html', data=data_for('/register_group.html'), form=form)
 	
+@app.route('/files/<file>')
+@login_required
+def download_file(filename):
+	return send_file(os.path.join(app.config['DOCUMENT_UPLOAD_FOLDER'], filename), as_attachment = True)

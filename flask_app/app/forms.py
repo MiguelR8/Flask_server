@@ -37,9 +37,9 @@ class DocSearchForm(FlaskForm):
 
 class UserSearchForm(FlaskForm):
 	#delay query until database is created
-	class UserIter:
+	class AuthorIter:
 		def __iter__(self):
-			return [(u.id, u.name) for u in models.User.query.all()].__iter__()
+			return [(u.id, u.name) for u in models.Author.query.all()].__iter__()
 	
-	user = SelectField('user', choices = UserIter(), coerce=int, validators=[required('Campo obligatorio')])
-	submit = SubmitField('Buscar por usuario')
+	user = SelectField('user', choices = AuthorIter(), coerce=int, validators=[required('Campo obligatorio')])
+	submit = SubmitField('Buscar por autor')

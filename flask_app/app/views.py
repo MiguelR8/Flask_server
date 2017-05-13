@@ -11,31 +11,24 @@ import sys
 sys.path.insert(0, os.sep.join(os.path.abspath(__file__).split(os.sep)[:-3]))
 from cryptotools import getCommonName, verify_hash_with_certificate, hash_object, verify_boyen
 
-from hashlib import sha512
-
 def signed_documents_to_json(uid=None):
 	results = []
 	if uid is None:
-		for u in models.User.query.all():
+		for a in models.Author.query.all():
 			docs = []
-			for d in models.SignedDoc.query.filter_by(author = u.id, is_user = True).all():
+			for d in models.SignedDoc.query.filter_by(author = a.id).all():
 				docs.append({'name': d.name, 'hash':d.digest, 'sig':d.signed_digest})
 			if len(docs) > 0:
-				results.append({'name': u.name, 'documents':docs})
-		for g in models.Group.query.all():
-			docs = []
-			for d in models.SignedDoc.query.filter_by(author = g.id, is_user = False).all():
-				docs.append({'name': d.name, 'hash':d.digest, 'sig':d.signed_digest})
-			if len(docs) > 0:
-				results.append({'name': g.name, 'documents':docs})
+				results.append({'name': a.name, 'documents':docs})
 	else:
-		u = models.User.query.filter_by(id = uid).first()
-		if  u is not None:
+		a = models.Author.query.filter_by(id = uid).first()
+		if a is not None:
 			docs = []
-			for d in models.SignedDoc.query.filter_by(author = u.id, is_user = True).all():
-				docs.append({'name': d.name, 'hash':d.digest, 'sig':d.signed_digest})
+			for d in models.SignedDoc.query.filter_by(author = uid).all():
+				docs.append({'name': d.name, 'hash':d.digest, 'sig':d.signed_digest})		
 			if len(docs) > 0:
-				results.append({'name': u.name, 'documents':docs})
+				results.append({'name': a.name, 'documents':docs})
+		
 	return results
 
 #wrap in a function to delay loading until really needed
@@ -76,37 +69,42 @@ def load_user(id):
 def index():
 	userform = UserSearchForm()
 	docform = DocSearchForm()
-	if not current_user.is_authenticated:
-		if userform.validate_on_submit() or docform.validate_on_submit():
-			if userform.validate_on_submit():
-				#fetch all documents from user
-				res = signed_documents_to_json(userform.user.data)
-			else:
-				#fetch user
-				res = ""
-				doc = request.files['doc']
-				pdfLocation = os.path.join(app.config['DOCUMENT_UPLOAD_FOLDER'],
-					'___' + os.path.basename(doc.filename))
-				doc.save(pdfLocation)
-				digest = hash_object(pdfLocation, isFile = True)
-				os.remove(pdfLocation)
-				
-				d = models.SignedDoc.query.filter_by(digest = digest).first()
-				if d is not None:
-					u = models.User.query.get(d.author)
-					if u is not None:
-						res = u.name
-			return render_template('index.html', data = data_for('/index.html'), results=res)
+	
+	kwargs = {}
+	kwargs['data'] = data_for('/index.html')
+	kwargs['uform'] = userform
+	kwargs['dform'] = docform
+	
+	if userform.validate_on_submit() or docform.validate_on_submit():
+		if userform.validate_on_submit():
+			#fetch all documents from user
+			res = signed_documents_to_json(userform.user.data)
 		else:
-			flash_errors(userform)
-			flash_errors(docform)
-		return render_template('index.html', data=data_for('/index.html'),
-			uform = userform, dform = docform)
-	#Documents signed by user
-	udocs = signed_documents_to_json(current_user.id)
-	#And signed by a member of the group the user belongs to
-	#gdocs = 
-	return render_template('index.html', data = data_for('/index.html'), user_docs=udocs)
+			#fetch user
+			res = ""
+			doc = request.files['doc']
+			pdfLocation = os.path.join(app.config['DOCUMENT_UPLOAD_FOLDER'],
+				'___' + os.path.basename(doc.filename))
+			doc.save(pdfLocation)
+			digest = hash_object(pdfLocation, isFile = True)
+			os.remove(pdfLocation)
+			
+			d = models.SignedDoc.query.filter_by(digest = digest).first()
+			if d is not None:
+				u = models.User.query.get(d.author)
+				if u is not None:
+					res = u.name
+		#filter documents to display
+		kwargs['data']['data'] = res
+	else:
+		flash_errors(userform)
+		flash_errors(docform)
+	if current_user.is_authenticated:
+		#Documents signed by user
+		kwargs['user_docs'] = signed_documents_to_json(current_user.id)
+		#And signed by a member of the group the user belongs to
+		#gdocs = 
+	return render_template('index.html', **kwargs)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -133,11 +131,10 @@ def register():
 	redirect_if_logged_in('/')
 	form = RegisterForm()
 	if form.validate_on_submit():
-		if models.User.query.filter_by(name = form.username.data).first():
-			flash('Usuario ya existe')
+		if models.Author.query.filter_by(name = form.username.data).first():
+			flash('Nombre ya registrado')
 		else:
 			h = hash_object(form.password.data)
-			user = models.User(name = form.username.data, password = h)
 			ext = '.' + request.files['cert'].filename.split('.')[-1]
 			cert = os.path.join(app.config['USER_CERTIFICATE_FOLDER'],
 					form.username.data + ext)
@@ -145,6 +142,14 @@ def register():
 			#TODO: validate chain of trust
 			try:
 				if getCommonName(cert) == form.username.data:
+					#Save as author
+					author = models.Author(name = form.username.data)
+					db.session.add(author)
+					db.session.commit()
+					
+					#Save as user (author info needed)
+					author = models.Author.query.filter_by(name = form.username.data).first()
+					user = models.User(id = author.id, name = author.name, password = h)
 					db.session.add(user)
 					db.session.commit()
 					return redirect('/')
@@ -162,7 +167,7 @@ def register():
 @app.route('/upload', methods=['GET', 'POST'])
 @login_required
 def upload_main():
-	form= PDFUploadForm()
+	form = PDFUploadForm()
 	if form.validate_on_submit():
 		
 		doc = request.files['doc']
@@ -240,12 +245,20 @@ def create_group():
 			if (verify_boyen(master_key, public_keys,
 					data_for('/register_group.html')['challenge'],
 					challenge)):
-				#add group
-				db.session.add(models.Group(name = group_name))
+				
+				##add group
+				
+				#as author
+				db.session.add(models.Author(name = group_name))
 				db.session.commit()
 				
-				gid = str(models.Group.query.filter_by(name = group_name).first().id)
+				#as group
+				gid = models.Author.query.filter_by(name = group_name).first().id
+				db.session.add(models.Group(id = gid, name = group_name))
+				db.session.commit()
+				
 				#save keys
+				gid = str(gid)
 				with open(os.path.join(app.config['GROUP_KEYS_FOLDER'],
 						gid + '.mkey'), 'w') as f:
 					f.write(master_key)
@@ -261,8 +274,10 @@ def create_group():
 	else:
 		flash_errors(form)
 	return render_template('register_group.html', data=data_for('/register_group.html'), form=form)
-	
+
+       
 @app.route('/files/<file>')
 @login_required
 def download_file(filename):
-	return send_file(os.path.join(app.config['DOCUMENT_UPLOAD_FOLDER'], filename), as_attachment = True)
+	path = os.path.join(app.config['DOCUMENT_UPLOAD_FOLDER'], filename)
+	return send_file(path, as_attachment = True)

@@ -18,6 +18,14 @@ aside {
   
 }
 
+td > span {
+	overflow : auto;
+}
+
+td  {
+	font-size: 90%;
+}
+
 a {
   text-decoration: none; 
 }
@@ -26,9 +34,18 @@ aside > a {
   font-weight: bold;
 }
 
-#document_table {
+.document_table {
   width : 90%;
-  word-break: break-all;
   text-align: justify;
   table-layout: fixed;
+}
+
+.long-text {
+  word-break: break-all;
+  font-size: inherit;
+  font-size: 0.5rem;
+}
+
+.long-text:hover {
+  font-size: 1em;
 }

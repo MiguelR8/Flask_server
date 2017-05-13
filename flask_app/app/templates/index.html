@@ -1,84 +1,48 @@
 {% extends "base.html" %}
 {% block content %}
-<table title="{{data.title}}" id="document_table">
-	{% if results %}
-		<section>
-			{% if results is string %}
-				{% if results|count > 0 %}
-					<p>El documento pertenece al autor {{ results }}</p>
-				{% else %}
-					<p>Documento no encontrado</p>
-				{% endif %}
-			{% else %}
-				{% if results|count > 0 %}
-					<thead>
-						<th>Nombre del autor</th>
-						<th>Documentos disponibles</th>
-						<th>Hash y firma</th>
-					</thead>
-					<tbody>
-						{% for user in results %}
-							<tr>
-								<td>{{user.name}}</td>
-								<td>{{user.documents|count}}</td>
-								<td>
-									{% for doc in user.documents %}
-										<p>{{"%s - %s"|format(doc.hash, doc.sig)}}</p>
-									{% endfor %}
-								</td>
-							</tr>
-						{% endfor %}
-					</tbody>
-				{% else %}
-					<p>No hay documentos que mostrar</p>
-				{% endif %}
-			{% endif %}
-		</section>
-	{% elif user_docs %}
+	{% if user_docs is defined %}
 		<section>
 			<p>Mis documentos</p>
-			<table>
+			{% if user_docs|count > 0 %}
+			<table class="document_table">
 				<thead>
+					<th>Nombre del autor</th>
+					<th>Documentos disponibles</th>
 					<th>Nombre del documento</th>
 					<th>Hash</th>
 					<th>Firma</th>
-					<th></th>
+					<th>Descargar</th>
 				</thead>
 				<tbody>
-					{% for doc in user_docs %}
-						<tr>
-							<td>{{doc.name}}</td>
-							<td>{{doc.hash}}</td>
-							<td>{{doc.sig}}</td>
-							<td>
-								<a href="/files/{{doc.name}}">Descargar</a>
-							</td>
-						</tr>
+				{% for author in user_docs %}
+					<tr>
+						<td rowspan = {{author.documents|count}} > {{author.name}} </td>
+						<td rowspan = {{author.documents|count}} > {{author.documents|count}} </td>
+						<td class="long-text"> {{author.documents[0].name}} </td>
+						<td class="long-text"> {{author.documents[0].hash}} </td>
+						<td class="long-text"> {{author.documents[0].sig}}  </td>
+						<td>
+							<a href="/files/{{author.documents[0].name}}">Descargar</a>
+						</td>
+					</tr>
+					{% for doc in author.documents[1:] %}
+					<tr>
+						<td class="long-text"> {{ doc.name }} </td>
+						<td class="long-text"> {{ doc.hash }} </td>
+						<td class="long-text"> {{ doc.sig }} </td>
+						<td>
+							<a href="/files/{{doc.name}}">Descargar</a>
+						</td>
+					</tr>
 					{% endfor %}
+				{% endfor %}
 				</tbody>
 			</table>
+			{% else %}
+				<p>No hay documentos que mostrar</p>
+			{% endif %}
 		</section>
-	{% else %}
-		<section>
-			<thead>
-				<th>Nombre del autor</th>
-				<th>Documentos disponibles</th>
-				<th>Hash y firma</th>
-			</thead>
-			<tbody>
-			{% for author in data.data %}
-				<tr>
-					<td>{{author.name}}</td>
-					<td>{{author.documents|count}}</td>
-					<td>
-						{% for doc in author.documents %}
-							<p>{{"%s - %s"|format(doc.hash, doc.sig)}}</p>
-						{% endfor %}
-					</td>
-				</tr>
-			{% endfor %}
-			</tbody>
-		</section>
+	{% endif %}
 		<section>
 			<p>Buscar documentos por autor, o autor por documento</p>
 			<form action="" method="post" name="docfind" enctype="multipart/form-data">
@@ -90,7 +54,41 @@
 				<p> Usuario: {{ uform.user }} {{ uform.submit }} </p>
 			</form>
 		</section>
-	{% endif %}
-</table>
+		<section>
+			{% if data.data is string %}
+				{% if data.data|count > 0 %}
+					<p>El documento pertenece al autor {{ data.data }}</p>
+				{% else %}
+					<p>Documento no encontrado</p>
+				{% endif %}
+			{% elif data.data|count > 0 %}
+			<table title="{{data.title}}" class="document_table">
+				<thead>
+					<th>Nombre del autor</th>
+					<th>Documentos disponibles</th>
+					<th>Hash</th>
+					<th>Firma</th>
+				</thead>
+				<tbody>
+				{% for author in data.data %}
+					<tr>
+						<td rowspan = {{author.documents|count}} > {{author.name}} </td>
+						<td rowspan = {{author.documents|count}} > {{author.documents|count}} </td>
+						<td class="long-text"> {{author.documents[0].hash}} </td>
+						<td class="long-text"> {{author.documents[0].sig}}  </td>
+					</tr>
+					{% for doc in author.documents[1:] %}
+					<tr>
+						<td class="long-text"> {{ doc.hash }} </td>
+						<td class="long-text"> {{ doc.sig }} </td>
+					</tr>
+					{% endfor %}
+				{% endfor %}
+				</tbody>
+			</table>
+			{% else %}
+				<p>No hay documentos que mostrar</p>
+			{% endif %}
+		</section>
 {% endblock %}
 

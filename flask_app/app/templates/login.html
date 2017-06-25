@@ -3,7 +3,9 @@
 	<form action="" method="post" name="login">
 		{{ form.hidden_tag() }}
 		<p>Nombre de usuario: {{ form.username(size=30) }}</p>
-		<p>Contraseña: {{form.password}}</p>
+		<p>Tipo de firma: {{ form.signtype }}</p>
+		<p>Desafío: <span id="challenge">{{ data.challenge }}</span></p>
+		<p>Respuesta: {{ form.answer }}</p>
 		<p>Recordar sesión {{ form.remember_me }}</p>
 		<p>{{ form.submit }}</p>
 	</form>

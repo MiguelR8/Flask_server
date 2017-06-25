@@ -9,7 +9,8 @@ import os
 import sys
 #allow import from cryptotools path
 sys.path.insert(0, os.sep.join(os.path.abspath(__file__).split(os.sep)[:-3]))
-from cryptotools import getCommonName, verify_hash_with_certificate, hash_object, verify_boyen
+from cryptotools import getCommonName, hash_object
+from .signschemes import BoyenScheme, RSAScheme
 
 def signed_documents_to_json(uid=None):
 	results = []
@@ -37,7 +38,7 @@ def data_for(key):
                 {'title': u'Documentos firmados',
                 'data': signed_documents_to_json()},
         '/login.html':
-                {'title': u'Iniciar sesión'},
+                {'title': u'Iniciar sesión', 'challenge' : 'Cifre este texto para verificar su identidad'},
         '/doc_upload.html':
                 {'title': u'Subir archivo'},
         '/register.html':
@@ -111,12 +112,26 @@ def login():
 	redirect_if_logged_in('/')
 	form = LoginForm()
 	if form.validate_on_submit():
-		h = hash_object(form.password.data)
-		user = models.User.query.filter_by(name = form.username.data, password = h).first()
-		if user is None:
-			flash(u'Usuario o contraseña incorrectos')
+		signtype = form.signtype.data
+		author = None
+		validated = False
+		challenge = data_for('/login.html')['challenge']
+		answer = form.answer.data
+		maps = {(1,) : [models.User, RSAScheme],		#user schemes
+				(2,) : [models.Group, BoyenScheme]}		#group schemes
+
+		for t,l in maps.items():
+			if signtype in t:
+				author = l[0].query.filter_by(name = form.username.data).first()
+				scheme = l[1]
+
+		if author is not None:
+			validated = scheme.is_signature_valid(challenge, answer, author.name)
+
+		if author is None or not validated:
+			flash('Usuario o respuesta incorrecta')
 		else:
-			login_user(user, remember = form.remember_me.data)
+			login_user(author, remember = form.remember_me.data)
 			return redirect('/index')
 	flash_errors(form)
 	return render_template('login.html', data=data_for('/login.html'), form=form)
@@ -171,9 +186,9 @@ def upload_main():
 	if form.validate_on_submit():
 		
 		doc = request.files['doc']
-		#TODO: clean up
 		signed = form.digest.data
 		signtype = form.signtype.data
+		errorMessage = 'Fallo de validación, verifique que las claves y la firma son correctas'
 		
 		pdfLocation = os.path.join(app.config['DOCUMENT_UPLOAD_FOLDER'],
 			os.path.basename(doc.filename))
@@ -185,48 +200,40 @@ def upload_main():
 		if models.SignedDoc.query.filter_by(digest = digest).first() is not None:
 			flash('Archivo ya existe')
 		else:
+			author_id, validated = None, False
+			is_user = signtype in [1]		#allow for more signature types in the future
 			if signtype == 1:		#RSA
-				try:
-					verify_hash_with_certificate(digest,
-						signed,
-						os.path.join(app.config['USER_CERTIFICATE_FOLDER'],
-							current_user.name + '.pem'))
-					db.session.add(models.SignedDoc(name = filename,
-						author = current_user.id,
-						is_user = True,
-						digest = digest,
-						signed_digest = signed))
-					db.session.commit()
-					
-					return redirect('/')
-				except Exception:
-					flash('Error de validación: el documento y/o certificado no corresponden con la firma')
+				if RSAScheme.is_signature_valid(digest, signed, current_user.name):
+					author_id = current_user.id
+					validated = True
 			elif signtype == 2:		#Boyen
 				group_name = form.group_name.data
-				g = models.Group.query.filter_by(name = group_name).first()
-				if g is None:
-					flash('Grupo no registrado, debe crearse antes de subir documentos')
+				public_keys = form.public_keys.data.strip()
+				
+				if BoyenScheme.is_signature_valid(digest,
+						signed_digest,
+						group_name,
+						public_keys = public_keys):
+					author_id = models.Group.query.filter_by(name = group_name).first().id
+					validated = True
 				else:
-					public_keys = form.public_keys.data.strip()
-					if len(public_keys) == 0:		#load saved keys instead
-						with open(os.path.join(app.config['GROUP_KEYS_FOLDER'], str(g.id) + '.pkeys')) as f:
-							public_keys = f.read()
-					
-					with open(os.path.join(app.config['GROUP_KEYS_FOLDER'], str(g.id) + '.mkey')) as f:
-						master_key = f.read()
-					
-					if verify_boyen(master_key, public_keys, digest, signed):
-						db.session.add(models.SignedDoc(name = filename,
-							author = g.id,
-							is_user = False,
-							digest = digest,
-							signed_digest = signed))
-						db.session.commit()
-						return redirect('/')
-					else:
-						flash('Fallo de validación, verifique que las claves y la firma son correctas')
+					errorMessage = 'Fallo de validación, verifique que el nombre de grupo, las claves y la firma son correctas'
 			else:
 				flash('Tipo de firma incorrecto, elija otro')
+			
+			if validated:
+				db.session.add(models.SignedDoc(name = filename,
+					author = author_id,
+					is_user = is_user,
+					digest = digest,
+					signed_digest = signed))
+				db.session.commit()
+				flash('Documento subido con éxito', 'success')
+				flash('Su hash es ' + (digest), 'success')
+				return redirect('/')
+			elif signtype in [1,2]:
+				flash(errorMessage)
+			
 		os.remove(pdfLocation)
 	flash_errors(form)
 	return render_template('doc_upload.html', data=data_for('/doc_upload.html'), form=form)
@@ -242,10 +249,14 @@ def create_group():
 		challenge = form.answer.data
 		if models.Group.query.filter_by(name = group_name).first() is None:
 			#validate challenge
-			if (verify_boyen(master_key, public_keys,
-					data_for('/register_group.html')['challenge'],
-					challenge)):
-				
+			if BoyenScheme.is_signature_valid(data_for('/register_group.html')['challenge'],
+					challenge,
+					group_name,
+					public_keys = public_keys,
+					master_key = master_key):
+			#if (verify_boyen(master_key, public_keys,
+			#		data_for('/register_group.html')['challenge'],
+			#		challenge)):
 				##add group
 				
 				#as author

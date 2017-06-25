@@ -2,6 +2,11 @@
   color: red;
 }
 
+.FormMessage {
+  color: black;
+  font-weight: bold;
+}
+
 article {
   width: 80%;
   float: left;

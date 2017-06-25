@@ -75,9 +75,9 @@ def cert_upload():
 		
 		#validate from the certificate chain?
 		if cert.get_issuer().CN == getCommonName(app.config['CERT_PATH']):
-			before = cert.get_notBefore()[:14]	#chop the Z or +-HHMM characters
+			before = cert.get_notBefore()[:14].decode()	#chop the Z or +-HHMM characters
 			before = datetime.strptime(before, '%Y%m%d%H%M%S')
-			after = cert.get_notAfter()[:14]
+			after = cert.get_notAfter()[:14].decode()
 			after = datetime.strptime(after, '%Y%m%d%H%M%S')
 			now = datetime.now()
 			if before < now and after > now:
@@ -87,10 +87,9 @@ def cert_upload():
 		if valid:
 			msg = 'Certificado verificado, pertenece a ' + cert.get_subject().CN
 		else:
-			msg = 'Se desconfía de la procedencia del certificado'
+			flash ('Se desconfía de la procedencia del certificado', category='info')
 			if time_invalid:
-				msg += "\nEl certificado para {} no está en su periodo de validez".format(cert.get_subject().CN)
-		flash (msg, category='info')
+				flash ("El certificado para {} no está en su periodo de validez".format(cert.get_subject().CN), category='info')
 		return redirect('/')
 	flash_errors(form)
 	return render_template('validate.html', data=data['validate'], form=form)

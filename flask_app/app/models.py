@@ -22,7 +22,6 @@ class User(db.Model):
 		
 	def get_id(self):
 		return str(self.id)
-	#can the user have several certificates? 
 	
 #User to Group relation
 class Membership(db.Model):
@@ -34,6 +33,20 @@ class Group(db.Model):
 	id		 = db.Column(db.ForeignKey('author.id'), primary_key = True)
 	name	 = db.Column(db.ForeignKey('author.name'))
 	#admin   = db.Column(db.ForeignKey('user.id'))				#no admins for group schemes, yet
+	@property
+	def is_active(self):
+		return True
+
+	@property
+	def is_authenticated(self):
+		return True
+
+	@property
+	def is_anonymous(self):
+		return False
+		
+	def get_id(self):
+		return str(self.id)
 
 class SignedDoc(db.Model):
 	id      = db.Column(db.Integer, primary_key = True)

@@ -1,36 +1,80 @@
 import sys
 if sys.version[0] < '3':
 	print("Error: must use python3 to continue")
-	exit(0)
+	exit(1)
 
+import os
+#allow import from cryptotools path
+sys.path.insert(0, os.sep.join(os.path.abspath(__file__).split(os.sep)[:-2]))
 from cryptotools import *
 import re
 
 
 	
-def help():
-	print(
-'''Usage: {0} --pkey-hash file_path private_key_path [password]
-           --boyen-hash file_path master_key_path public_keys_path private_key_path index
-           --boyen-sign-text string master_key_path public_keys_path private_key_path index
+def help(sub = None):
+	if sub is 'hash':
+		print ('''Usage: {0} hash [-f|--file] [-h|--hash] protocol [file_path|string] args...
+If -f is provided, treat argument as a file path, otherwise a string,
+If -h is provided, hash first (sha512)
+
+Protocols:
+	RSA [path|string] private_key_path [password]
+	Boyen [path|string] master_key_path public_keys_path private_key_path key_index
+'''.format(sys.argv[0]))
+	else:
+		print('''Usage: {0} hash protocol [-f|--file] [-h|--hash] path_or_string credentials...
            --boyen-make-group [numMembers] (default is one member)
            --boyen-add-members master_key_path public_keys_path [numMembers] (default is one member)
-'''.format(sys.argv[0])) and exit()
+'''.format(sys.argv[0]))
+	
+	exit(1)
+
+def _hash(*args):
+	if len(args) < 2:
+		help('hash')
+	
+	isFile = doHash = False
+	protocol = args[0]
+	drop = 1
+	opts = [['-f', '--file'], ['-h', '--hash']]
+	if args[1] in opts[0] or args[2] in opts[0]:
+		isFile = True
+		drop += 1
+	if args[1] in opts[1] or args[2] in opts[1]:
+		doHash = True
+		drop += 1
+	args = args[drop:]
+	
+	if protocol == 'RSA':
+		RSA_hash(*args, isFile = isFile, doHash = doHash)
+	elif protocol == 'Boyen':
+		Boyen_hash(*args, isFile = isFile, doHash = doHash)
+	else:
+		print("Unrecognized protocol: " + protocol)
+		help('hash')
    
-   
-def RSA_hash(file_path, pkey_path, password=None):
-	digest = hash_object(file_path, isFile = True)
-	signed_digest = encrypt_hash(digest, pkey_path, password)
+def RSA_hash(txt, pkey_path, password = None, isFile = True, doHash = True):
+	if isFile:
+		with open(txt, 'rb') as f:
+			txt = f.read()
+	if doHash:
+		txt = hash_object(txt, isFile)
+	
+	signed_digest = encrypt_hash(txt, pkey_path, password)
 	print('''Document: {}
 
 Signed hash: {}
 
-'''.format(file_path, signed_digest))
+'''.format(txt, signed_digest))
 
-def Boyen_hash_file(file_path, master_key_path, public_keys_path, private_key_path, index):
-	with open(file_path, 'rb') as f:
-		txt = f.read()
-	digest = hash_object(txt)
+def Boyen_hash(txt, master_key_path, public_keys_path, private_key_path,
+		index, isFile = True, doHash = True):
+	if isFile:
+		with open(txt, 'rb') as f:
+			txt = f.read()
+	if doHash:
+		txt = hash_object(txt, isFile)
+	
 	with open(master_key_path) as f:
 		master_key = f.read().strip()
 	with open(public_keys_path) as f:
@@ -41,32 +85,13 @@ def Boyen_hash_file(file_path, master_key_path, public_keys_path, private_key_pa
 		i = int(index)
 	except ValueError:
 		print('Error: index must be a base 10 integer')
-		help()
-	sig = encrypt_boyen(i, master_key, public_keys, private_key, digest)
+		help('hash')
+	sig = encrypt_boyen(i, master_key, public_keys, private_key, txt)
 	print('''Document: {}
 
 Signed hash: {}
 
-'''.format(file_path, sig))
-
-def Boyen_hash_string(text, master_key_path, public_keys_path, private_key_path, index):
-	with open(master_key_path) as f:
-		master_key = f.read().strip()
-	with open(public_keys_path) as f:
-		public_keys = f.read().strip()
-	with open(private_key_path) as f:
-		private_key = f.read().strip()
-	try:
-		i = int(index)
-	except ValueError:
-		print('Error: index must be a base 10 integer')
-		help()
-	sig = encrypt_boyen(i, master_key, public_keys, private_key, text)
-	print('''Text: {}
-
-Signed hash: {}
-
-'''.format(text, sig))
+'''.format(txt, sig))
 
 def Boyen_create_group(members='1'):
 	mkey = generate_master_key()
@@ -90,7 +115,6 @@ def Boyen_create_group(members='1'):
 		
 	print("Compressed list of public keys:\n{}\n".format(array))
 	
-
 def Boyen_add_members(master_key_path, public_keys_path, members='1'):
 	with open(master_key_path) as f:
 		master_key = f.read().strip()
@@ -113,11 +137,9 @@ opt = sys.argv[1]
 try:
 	if re.compile("--?(h|help)$").match(opt):
 		help()
-	elif opt == '--pkey-hash':
-		RSA_hash(*sys.argv[2:])
-	elif opt == '--boyen-hash':
-		Boyen_hash_file(*sys.argv[2:])
-	elif opt == '--boyen-sign-text': 
+	elif opt == 'hash':
+		_hash(*sys.argv[2:])
+	elif opt == '--boyen-sign-text':
 		Boyen_hash_string(*sys.argv[2:])
 	elif opt == '--boyen-make-group':
 		Boyen_create_group(*sys.argv[2:])
@@ -127,5 +149,5 @@ try:
 		print('Unrecognized option {}'.format(opt))
 except TypeError as e:
 	print('Invalid number of arguments')
-	raise e
 	help()
+	raise e

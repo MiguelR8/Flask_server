@@ -136,7 +136,11 @@ def verify_hash(digest, signature, k_bytes):
 		hashes.SHA512()
 	)
 	verifier.update(digest.encode())
-	verifier.verify()
+	try:
+		verifier.verify()
+		return True
+	except:
+		return False
    
 #With PEM certificate and SHA512 hashing and padding only
 #raises InvalidSignature on validation failure
@@ -162,7 +166,11 @@ def verify_hash_with_certificate(digest, signature, cert_path_or_bytes):
 		hashes.SHA512()
 	)
 	verifier.update(digest.encode())
-	verifier.verify()
+	try:
+		verifier.verify()
+		return True
+	except:
+		return False
 	
 #Boyen mesh
 #TODO: argument sanity check
